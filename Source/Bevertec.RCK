@@ -1,0 +1,35 @@
+/*------------------------------------------------------------------
+ *
+ *	Filename:	Bevertec.rck
+ *
+ *	Description: This file contains resource for defining the devices 
+ *				  and input/output events of the application
+ *
+ *  Modification History:
+ *  #		Date        Who				Comments
+ *	1.0		DD-MMM-YYYY	VMAC Wizard		Initial Implementation
+ *
+ *------------------------------------------------------------------*/
+/*********************************************************************
+   Copyright (C) 2000-2006 by VeriFone Inc. All rights reserved.
+
+ No part of this software may be used, stored, compiled, reproduced,
+ modified, transcribed, translated, transmitted, or transferred, in
+ any form or by any means  whether electronic, mechanical,  magnetic,
+ optical, or otherwise, without the express prior written permission
+                           of VeriFone, Inc.
+**********************************************************************/
+
+#include "devman.h"
+#include "devman.rt"
+#include "..\include\Appevent.h"
+
+resource app1Rsrc DEVMAN_RSRC DevManRsrc
+{
+	{
+	(LOW,	    APPLICATION_INIT_EVENT,	INIT_EVENT,		{(MAG_READER)}),
+	(HIGH,  	ACT_EVENT,				ACT_EVENT,		{(CONSOLE)}),
+	(MEDIUM,	PRINTER_REQUEST_EVENT,	PRINTER_EVENT,	{(COMM_4)}),
+	(MEDIUM,	MAGCARD_REQUEST_EVENT,	MAGCARD_EVENT,	{(MAG_READER)})
+	}
+};

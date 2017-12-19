@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<WORKSPACE name="Bevertecsln">
+  <PROJECT name="Bevertec">
+    <PATH>D:\BevertecCST-FI\Bevertec</PATH>
+    <DIR name="Docs" />
+    <DIR name="Include">
+      <FILE name="Appevent.h" />
+      <FILE name="Bevertec.h" />
+    </DIR>
+    <DIR name="obj" />
+    <DIR name="Output">
+      <DIR name="RV">
+        <DIR name="Download">
+          <FILE name="BevertecDbgF.dld" />
+          <FILE name="BevertecDbgR.dld" />
+          <FILE name="BevertecRelF.dld" />
+          <FILE name="BevertecRelR.dld" />
+          <FILE name="DlBevertec.bat" />
+        </DIR>
+        <DIR name="Files">
+          <FILE name="Bevertec.ins" />
+          <FILE name="IMMBevertec.ini" />
+          <DIR name="Debug">
+            <DIR name="SignFile">
+              <DIR name="FLASH" />
+              <DIR name="RAM" />
+            </DIR>
+          </DIR>
+          <DIR name="Release">
+            <DIR name="SignFile">
+              <DIR name="FLASH" />
+              <DIR name="RAM" />
+            </DIR>
+          </DIR>
+          <DIR name="Resource" />
+        </DIR>
+      </DIR>
+    </DIR>
+    <DIR name="Projects">
+      <DIR name="RV">
+        <DIR name="Debug">
+          <FILE name="Bevertec.dsp" />
+          <FILE name="Bevertec.dsw" />
+          <FILE name="Bevertec.smk" />
+          <FILE name="Bevertecf.fst" />
+          <FILE name="Bevertecr.fst" />
+        </DIR>
+        <DIR name="Release">
+          <FILE name="Bevertec.dsp" />
+          <FILE name="Bevertec.dsw" />
+          <FILE name="Bevertec.smk" />
+          <FILE name="Bevertecf.fst" />
+          <FILE name="Bevertecr.fst" />
+        </DIR>
+      </DIR>
+    </DIR>
+    <DIR name="Source">
+      <FILE name="Bevertec.c" />
+      <FILE name="Bevertec.RCK" />
+      <DIR name="Include" />
+    </DIR>
+  </PROJECT>
+</WORKSPACE>
