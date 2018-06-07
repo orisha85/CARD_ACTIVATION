@@ -979,7 +979,9 @@ short InitCardActivation(TransactionMsgStruc *transMsg)
 		strcpy((char *)transMsg->POSEntryMode, MSReICC_PIN_CAPABLE);             //22 POS Entry Mode
 	}
 
-	if (strcmp(transMsg->POSEntryMode, "051"))
+	LOG_PRINTF(("transMsg->POSEntryMode=%s ", transMsg->POSEntryMode));
+
+	if (!strcmp(transMsg->POSEntryMode, "051"))
 	{
 		if (key_injected == 0)
 		{
@@ -1070,7 +1072,7 @@ short InitPinChange(TransactionMsgStruc *transMsg)
 		}
 		strcpy((char *)transMsg->POSEntryMode, MSReICC_PIN_CAPABLE);             //22 POS Entry Mode
 	}
-	if (strcmp(transMsg->POSEntryMode, "051"))
+	if (!strcmp(transMsg->POSEntryMode, "051"))
 	{
 		if (key_injected == 0)
 		{

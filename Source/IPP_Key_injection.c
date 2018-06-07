@@ -1056,10 +1056,10 @@ int iPIN_Open (int iDevice, int iBaud, int iFormat, int *piHandle)
 			
 			if (*piHandle < 0)
 				return PP_COMM_FAILURE;
-      if(LOG_STATUS == LOG_ENABLE)
-      {
-			  LOG_PRINTF(("PINPAD_INTERNAL DEV_COM5 %d", *piHandle));
-      }
+		  if(LOG_STATUS == LOG_ENABLE)
+		  {
+				  LOG_PRINTF(("PINPAD_INTERNAL DEV_COM5 %d", *piHandle));
+		  }
 		}
 
 		else
