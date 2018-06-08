@@ -1089,11 +1089,11 @@ short InitPinChange(TransactionMsgStruc *transMsg)
 			LOG_PRINTF(("iRetval new pin=%d ", iRetVal));
 		}
 	}
-	else
-	{
-		iRetVal = PinPrompt(transMsg->PrimaryAccNum);//getting new user pin
-		LOG_PRINTF(("iRetval new pin=%d ", iRetVal));
-	}
+	//else
+	//{
+	//	iRetVal = PinPrompt(transMsg->PrimaryAccNum);//getting new user pin
+	//	LOG_PRINTF(("iRetval new pin=%d ", iRetVal));
+	//}
 
 
 	LOG_PRINTF(("pinblock=%s ", transMsg->PinData));
