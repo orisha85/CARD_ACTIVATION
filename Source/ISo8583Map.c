@@ -31,6 +31,7 @@ extern sEMV_DATA emvdata;		//global emv structure
 extern unsigned char EncSessionKeyKCV[UNPACK_ENC_PR_KCV_LEN+1]; 
 extern unsigned char DataEncKey[UNPACK_ENC_PR_KEY_LEN+1]; 
 extern unsigned char DataEncKeyKCV[UNPACK_ENC_PR_KCV_LEN+1]; 
+extern char loggedinOper[9];
 char temp_pin2[24];
 
 /******************************************************************
@@ -108,7 +109,8 @@ void CreateRequestStream(TransactionMsgStruc *ptrTransactionMsgStrucOb)
   int x = 0;
   char ReqAmount[AMOUNT_LEN+1]={0};//13
   int field_63_header[] = { 48, 34, 51, 51 };
-  unsigned char field_63_new_pin[] =  { '0', '0', '1', '0', '4', 'E', '5', '0'};
+  unsigned char field_63_new_pin[3];
+  unsigned char field_63_pin[4];
   char temp[10];
   unsigned char *ptr = ptrTransactionMsgStrucOb->NewPinData;
   int ret = 0;
@@ -166,7 +168,7 @@ void CreateRequestStream(TransactionMsgStruc *ptrTransactionMsgStrucOb)
 		  {
 			  ptrTransactionMsgStrucOb->PinData[i] = EncOldPinBlock[i];
 		  }
-
+		  /*
 		  for (x = 0; x < 8; x++)
 		  {
 			  sprintf(temp, "%c", field_63_new_pin[x]);
@@ -175,17 +177,37 @@ void CreateRequestStream(TransactionMsgStruc *ptrTransactionMsgStrucOb)
 			  strcat(ptrTransactionMsgStrucOb->NewPinData, temp);
 			  LOG_PRINTF(("for ptrTransactionMsgStrucOb->NewPinData: %s", ptrTransactionMsgStrucOb->NewPinData));
 		  }
+		  */
+		  //packData("00104E50", temp_pin);
+		  field_63_new_pin[0] = 'N';
+		  field_63_new_pin[1] = 'P';
+		  field_63_new_pin[2] = '\0';
+		  LOG_PRINTF((" temp_pin: %s", temp_pin));
+		  strcpy(ptrTransactionMsgStrucOb->NewPinData, field_63_new_pin);
+		  LOG_PRINTF((" ptrTransactionMsgStrucOb->NewPinData: %s, length: %d", ptrTransactionMsgStrucOb->NewPinData, strlen(ptrTransactionMsgStrucOb->NewPinData)));
 		  strncat(ptrTransactionMsgStrucOb->NewPinData, EncPinBlock, sizeof(EncPinBlock));
-		  LOG_PRINTF((" ptrTransactionMsgStrucOb->NewPinData: %s", ptrTransactionMsgStrucOb->NewPinData));
+		  LOG_PRINTF((" ptrTransactionMsgStrucOb->NewPinData: %s, length: %d", ptrTransactionMsgStrucOb->NewPinData, strlen(ptrTransactionMsgStrucOb->NewPinData)));
 
-		  packData(ptrTransactionMsgStrucOb->NewPinData, temp_pin);
+
+
 	  }
 	  else
 	  {
-		  for (i = 0; i < BIANRY_PIN_LEN; i++)
-		  {
-			  ptrTransactionMsgStrucOb->PinData[i] = EncPinBlock[i];
-		  }
+		  //field_63_pin[0] = 0x00;
+		  //field_63_pin[1] = '0';
+		  //field_63_pin[2] = '1';
+		  //field_63_pin[0] = 0x10;
+		  field_63_pin[0] = 'N';
+		  field_63_pin[1] = 'P';
+		  field_63_pin[2] = '\0';
+		  strncpy(ptrTransactionMsgStrucOb->PinData, field_63_pin, 6);
+		  LOG_PRINTF((" PinData: %s, length: %d", ptrTransactionMsgStrucOb->PinData, strlen(ptrTransactionMsgStrucOb->PinData)));
+		  strncat(ptrTransactionMsgStrucOb->PinData, EncPinBlock, sizeof(EncPinBlock));
+		  LOG_PRINTF((" PinData: %s, length: %d", ptrTransactionMsgStrucOb->PinData, strlen(ptrTransactionMsgStrucOb->PinData)));
+		  //for (i = 0; i < BIANRY_PIN_LEN; i++)
+		  //{
+		//	  ptrTransactionMsgStrucOb->PinData[i] = EncPinBlock[i];
+		  //}
 	  }
 
 	  //for (i = 0; i < BIANRY_PIN_LEN; i++)
@@ -666,6 +688,8 @@ void CreateRequestStream(TransactionMsgStruc *ptrTransactionMsgStrucOb)
 		strncpy((char *)BitmapStructOb.field_35, ptrTransactionMsgStrucOb->Track2Data, strlen(ptrTransactionMsgStrucOb->Track2Data));        // Track 2 data
 		strncpy((char *)BitmapStructOb.field_41, ptrTransactionMsgStrucOb->TerminalID, TERMINAL_ID_LEN);        // Terminal ID
 		strncpy((char *)BitmapStructOb.field_42, ptrTransactionMsgStrucOb->CardAcceptorID, CARD_ACCEPTOR_ID_LEN);        // Terminal ID
+		strcpy((char *)BitmapStructOb.field_59, loggedinOper);
+
 
 		if (LOG_STATUS == LOG_ENABLE)
 		{
@@ -683,12 +707,17 @@ void CreateRequestStream(TransactionMsgStruc *ptrTransactionMsgStrucOb)
 		{
 			BitmapStructOb.field_52[i] = ptrTransactionMsgStrucOb->PinData[i];
 		}
-		LOG_PRINTF(("Field 52=%s ", BitmapStructOb.field_52));
+		
 
-		for (i = 0;i<12;i++)                                                                        //63 PIN Data
+		LOG_PRINTF(("Field 52=%s ", BitmapStructOb.field_52));
+		/*
+		for (i = 0;i<16;i++)                                                                        //63 PIN Data
 		{
-			BitmapStructOb.field_63[i] = temp_pin[i];
-		}
+			BitmapStructOb.field_63[i] = ptrTransactionMsgStrucOb->NewPinData[i];
+		}*/
+
+		memset(BitmapStructOb.field_63, 0, sizeof(BitmapStructOb.field_63));
+		strcpy(BitmapStructOb.field_63, ptrTransactionMsgStrucOb->NewPinData);
 		LOG_PRINTF(("Field 63=%s ", BitmapStructOb.field_63));
 
 		
@@ -704,6 +733,61 @@ void CreateRequestStream(TransactionMsgStruc *ptrTransactionMsgStrucOb)
 			
 		}
 		break;
+	case PINRESETMSGTYPE_CASE:
+		strncpy((char *)BitmapStructOb.message_id, ptrTransactionMsgStrucOb->MessageTypeInd, MSG_ID_LEN);     // message id Authorization request 
+		strncpy((char *)BitmapStructOb.field_03, ptrTransactionMsgStrucOb->ProcessingCode, PROC_CODE_LEN);       // Processing Code 
+		strncpy((char *)BitmapStructOb.field_11, ptrTransactionMsgStrucOb->TraceAuditNo, TRACE_AUDIT_LEN);           // System trace audit number 
+		strncpy((char *)BitmapStructOb.field_22, ptrTransactionMsgStrucOb->POSEntryMode, POS_ENTRY_LEN);		// POS Entry Mode
+		strncpy((char *)BitmapStructOb.field_24, ptrTransactionMsgStrucOb->NetworkInternationalId, NII_LEN);        // NII
+		strncpy((char *)BitmapStructOb.field_25, ptrTransactionMsgStrucOb->POSConditionCode, POS_COND_LEN);        // POS Condition Code
+		strncpy((char *)BitmapStructOb.field_35, ptrTransactionMsgStrucOb->Track2Data, strlen(ptrTransactionMsgStrucOb->Track2Data));        // Track 2 data
+		strncpy((char *)BitmapStructOb.field_41, ptrTransactionMsgStrucOb->TerminalID, TERMINAL_ID_LEN);        // Terminal ID
+		strncpy((char *)BitmapStructOb.field_42, ptrTransactionMsgStrucOb->CardAcceptorID, CARD_ACCEPTOR_ID_LEN);        // Terminal ID
+		strcpy((char *)BitmapStructOb.field_59, loggedinOper);
+
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Field 03=%s ", BitmapStructOb.field_03));
+			LOG_PRINTF(("Field 11=%s ", BitmapStructOb.field_11));
+			LOG_PRINTF(("Field 22=%s ", BitmapStructOb.field_22));
+			LOG_PRINTF(("Field 24=%s ", BitmapStructOb.field_24));
+			LOG_PRINTF(("Field 25=%s ", BitmapStructOb.field_25));
+			LOG_PRINTF(("Field 35=%s ", BitmapStructOb.field_35));
+			LOG_PRINTF(("Field 41=%s ", BitmapStructOb.field_41));
+			LOG_PRINTF(("Field 42=%s ", BitmapStructOb.field_42));
+			LOG_PRINTF(("Field 59=%s ", BitmapStructOb.field_59));
+		}
+
+		for (i = 0;i < 10;i++)                                                                        //52 PIN Data
+		{
+			BitmapStructOb.field_52[i] = ptrTransactionMsgStrucOb->PinData[i];
+		}
+
+
+		LOG_PRINTF(("Field 52=%s ", BitmapStructOb.field_52));
+		/*
+		for (i = 0;i<16;i++)                                                                        //63 PIN Data
+		{
+			BitmapStructOb.field_63[i] = ptrTransactionMsgStrucOb->NewPinData[i];
+		}*/
+
+		//memset(BitmapStructOb.field_63, 0, sizeof(BitmapStructOb.field_63));
+		//strcpy(BitmapStructOb.field_63, ptrTransactionMsgStrucOb->NewPinData);
+		//LOG_PRINTF(("Field 63=%s ", BitmapStructOb.field_63));
+
+
+
+		if (!strcmp((char *)ptrTransactionMsgStrucOb->POSEntryMode, ICC_PIN_CAPABLE))//FOR BATCH UPLOAD 
+		{
+			LOG_PRINTF(("ICC+_EMV"))
+				for (i = 0;i < (strlen(emvdata.DE55) / 2);i++) //for(i=0;i<81;i++)// For sending EMV data hard coded
+				{
+					BitmapStructOb.field_55[i] = ptrTransactionMsgStrucOb->EMV_Tag_Data[i];
+				}
+			strncpy((char *)BitmapStructOb.field_55, ptrTransactionMsgStrucOb->EMV_Tag_Data, strlen(ptrTransactionMsgStrucOb->EMV_Tag_Data));           //  For sending EMV data in plain txt
+
+		}
+		break;
 	case ACTIVATIONMSGTYPE_CASE: 
 		strncpy((char *)BitmapStructOb.message_id, ptrTransactionMsgStrucOb->MessageTypeInd, MSG_ID_LEN);     // message id Authorization request 
 		//strcpy((char *)BitmapStructOb.field_02,ptrTransactionMsgStrucOb->PrimaryAccNum);           // Primary Account Number 
@@ -717,6 +801,7 @@ void CreateRequestStream(TransactionMsgStruc *ptrTransactionMsgStrucOb)
 		strncpy((char *)BitmapStructOb.field_42, ptrTransactionMsgStrucOb->CardAcceptorID, CARD_ACCEPTOR_ID_LEN);        // Terminal ID
 		//strncpy((char *)BitmapStructOb.field_48, ptrTransactionMsgStrucOb->PaymentId, PAYMENT_ID_LEN);        // Payment ID
 																											  //strncpy((char *)BitmapStructOb.field_102,ptrTransactionMsgStrucOb->FromAcNo,ACCOUNT_NO_LEN);        //From Account Agency Bank
+		strcpy((char *)BitmapStructOb.field_59, loggedinOper);
 
 		if (LOG_STATUS == LOG_ENABLE)
 		{
@@ -730,7 +815,7 @@ void CreateRequestStream(TransactionMsgStruc *ptrTransactionMsgStrucOb)
 			LOG_PRINTF(("Field 42=%s ", BitmapStructOb.field_42));
 		}
 
-		for (i = 0;i<BIANRY_PIN_LEN;i++)                                                                        //52 PIN Data
+		for (i = 0;i<10;i++)                                                                        //52 PIN Data
 		{
 			BitmapStructOb.field_52[i] = ptrTransactionMsgStrucOb->PinData[i];
 		}
@@ -1066,22 +1151,34 @@ void SetingBitMap(TransactionMsgStruc *ptrTransactionMsgStrucOb)
 	    case PINCHANGEMSGTYPE_CASE:  
 				if (!strcmp((char *)ptrTransactionMsgStrucOb->POSEntryMode, ICC_PIN_CAPABLE))//for EMV event
 				{
-					map_man((char *)BitmapStructOb.t_map, 3, 11, 22, 24, 25, 35, 41, 42, 52, 55, 63 + STOP);
+					map_man((char *)BitmapStructOb.t_map, 3, 11, 22, 24, 25, 35, 41, 42, 52, 55, 59, 63 + STOP);
 				}
 				else
 				{
-					map_man((char *)BitmapStructOb.t_map, 3, 11, 22, 24, 25, 35, 41, 42, 52, 63 + STOP);
+					map_man((char *)BitmapStructOb.t_map, 3, 11, 22, 24, 25, 35, 41, 42, 52, 59, 63 + STOP);
 					//map_man((char *)BitmapStructOb.t_map, 3, 11, 22, 24, 25, 35, 41, 42, 52 + STOP);
 				}
 				break;
+
+		case PINRESETMSGTYPE_CASE:
+			if (!strcmp((char *)ptrTransactionMsgStrucOb->POSEntryMode, ICC_PIN_CAPABLE))//for EMV event
+			{
+				map_man((char *)BitmapStructOb.t_map, 3, 11, 22, 24, 25, 35, 41, 42, 55, 59, 63 + STOP);
+			}
+			else
+			{
+				map_man((char *)BitmapStructOb.t_map, 3, 11, 22, 24, 25, 35, 41, 42, 59, 63 + STOP);
+				//map_man((char *)BitmapStructOb.t_map, 3, 11, 22, 24, 25, 35, 41, 42, 52 + STOP);
+			}
+			break;
 	    case ACTIVATIONMSGTYPE_CASE: 
 				if (!strcmp((char *)ptrTransactionMsgStrucOb->POSEntryMode, ICC_PIN_CAPABLE))//for EMV event
 				{
-					map_man((char *)BitmapStructOb.t_map, 3, 11, 22, 24, 25, 35, 41, 42, 52, 55 + STOP);
+					map_man((char *)BitmapStructOb.t_map, 3, 11, 22, 24, 25, 35, 41, 42, 55, 59, 63 + STOP);
 				}
 				else
 				{
-					map_man((char *)BitmapStructOb.t_map, 3, 11, 22, 24, 25, 35, 41, 42, 52 + STOP);
+					map_man((char *)BitmapStructOb.t_map, 3, 11, 22, 24, 25, 35, 41, 42, 59, 63 + STOP);
 				}
 				break;
 	    case MOBILETOPUPMSGTYPE_CASE:  

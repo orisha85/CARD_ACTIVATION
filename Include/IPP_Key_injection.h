@@ -59,8 +59,10 @@ int  iPIN_Open          (int iDevice, int iBaud, int iFormat, int *piHandle);
 int iPIN_Send (int iHandle, unsigned char ucPcktStart, unsigned char *pucMessage, int iSize, int iTimeout);
 
 //Breaking the Key Injection and Pin prompt in two different functions
-int KeyInjection(char *PrimaryAccNO);
+//int KeyInjection(char *PrimaryAccNO);
+int KeyInjection(unsigned char* TMK);
 int PinPrompt(char *PrimaryAccNO);
+int PinPromptOperator();
 
 
 //int ProcessingKeyInjection(char *PrimaryAccNO); //Not being used anymore
@@ -79,7 +81,7 @@ void parseEncryptedPinBlock(unsigned char *pucMsgOut);
 
 //Session key Related (Working Key)
 #define MIN_PIN_LEN "04"
-#define MAX_PIN_LEN "12"
+#define MAX_PIN_LEN "04"
 #define NULL_PIN_YES 'Y'
 #define NULL_PIN_NO 'N'
 #define ECHO_CHAR '*'
@@ -101,8 +103,9 @@ void parseEncryptedPinBlock(unsigned char *pucMsgOut);
 ///////////////////////////////////////////////
 #define BEFORE_MASTER_KEY_PART "20120K0T443030303030303030303030303030303030304E30303332"
 
-#define MASTER_KEY             "A1D0D31016A40BD649E52AD09EC716AB"
+#define MASTER_KEY				"e49a720a4d9fbddedd6903068e50e7eb"
 
+//#define MASTER_KEY             "A1D0D31016A40BD649E52AD09EC716AB" //Test System
 //#define MASTER_KEY             "67B526322F169D26EF3D762FE361A731"
 #define AFTER_MASTER_KEY_PART  "FFFFFFFFFFFFFFFF0000000000000000" 
 #define INITIAL_VECTOR         "3230313230503054"
@@ -115,7 +118,7 @@ void parseEncryptedPinBlock(unsigned char *pucMsgOut);
 //This IPEK needs to be derived from KSN+BDK
 //YS - 08-17-2017
 #define IPEK "0D1BEB6B6D7B3234CAFF937786E3F124"
-#define KSN "9500030000000D200516"
+//#define KSN "9500030000000D200516"
 
 
 
@@ -125,5 +128,6 @@ short TDES_CBC_MAC(unsigned char *,unsigned char *,unsigned char *,unsigned char
 short EncryptingKeyBlocks(unsigned char *Input_Data,unsigned char *Output_Data,unsigned char *MAC_Output_Data,unsigned char *Key1,unsigned char *Key2,unsigned char *IVec,unsigned char *MAC_IVec,unsigned char *Temp,int size) ;
 short TDES_Decrypt_Logon_key(unsigned char *Input_Data,unsigned char *Output_Data,unsigned char *) ;
 short TDES_CBC16(unsigned char *Input_Data,int iInputlen,unsigned char *Output_Data,int *iOutLen,unsigned char *Iv,unsigned char *Key,int enc);
+int checkMasterKey();
 
 #endif

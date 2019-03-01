@@ -13,6 +13,7 @@
 #include "..\Include\ReciptPrint.h"
 #include "..\Include\Settlement.h"
 #include "..\Include\ISo8583Map.h"
+#include "..\Include\Supervisor.h"
 #include <time.h>
 
 
@@ -30,7 +31,7 @@ short print(char *bufferToPrint)
 {
 		unsigned char   printBuf[PRINT_BUF_SIZE]= {0} ;
 		short retVal=_FAIL;
-    disable_hot_key ();
+		disable_hot_key ();
 		if(paperOutFlag == 0)
 		{
 				memset (printBuf, 0, sizeof (printBuf));
@@ -57,6 +58,7 @@ short print(char *bufferToPrint)
 		}
 		return _FAIL;
 }
+
 /*********************************************************************************************************
 *	Function Name : print																																										*
 *	Purpose		    : print Bold String in paper																																		*
@@ -440,43 +442,46 @@ short RetriveDataForTotalReportReciept(TrDetails *transDetails,TotalReportDetail
 		
 	char temp[13]={0};
 		
-	float fSalAmount = 0.00;
-	float fWithAmount = 0.00;
-	float fTraAmount = 0.00;
-	float fRefAmount = 0.00;
-	float fDepAmount = 0.00;
-	float fVoidAmount = 0.00;
-    float fCreditAmount = 0.00;
-    float fDebitAmount = 0.00;
-    float fSumTransAmount = 0.00;
+	//float fSalAmount = 0.00;
+	//float fWithAmount = 0.00;
+	//float fTraAmount = 0.00;
+	//float fRefAmount = 0.00;
+	//float fDepAmount = 0.00;
+	//float fVoidAmount = 0.00;
+    //float fCreditAmount = 0.00;
+    //float fDebitAmount = 0.00;
+    //float fSumTransAmount = 0.00;
     
-	settlDetails->SalesCount = 0;
-	settlDetails->WithdrawCount = 0;
-	settlDetails->RefundCount = 0;
-	settlDetails->DepositCount = 0;
-	settlDetails->TransferCount = 0;
-	settlDetails->CreditCount = 0;
-	settlDetails->DebitCount = 0;
-	settlDetails->SumTransCount = 0;
+	//settlDetails->SalesCount = 0;
+	//settlDetails->WithdrawCount = 0;
+	//settlDetails->RefundCount = 0;
+	//settlDetails->DepositCount = 0;
+	//settlDetails->TransferCount = 0;
+	//settlDetails->CreditCount = 0;
+	//settlDetails->DebitCount = 0;
+	//settlDetails->SumTransCount = 0;
 		
 	memset(transDetails,0,sizeof(TrDetails));
-    memset(settlDetails->SaleAmount,'0',sizeof(settlDetails->SaleAmount));
-	memset(settlDetails->WithdrawAmount,'0',sizeof(settlDetails->WithdrawAmount));
-	memset(settlDetails->DepositAmount,'0',sizeof(settlDetails->DepositAmount));
-	memset(settlDetails->TransferAmount,'0',sizeof(settlDetails->TransferAmount));
-	memset(settlDetails->RefundAmount,'0',sizeof(settlDetails->RefundAmount));
-    memset(settlDetails->DebitAmount,'0',sizeof(settlDetails->DebitAmount));
-	memset(settlDetails->CreditdAmount,'0',sizeof(settlDetails->CreditdAmount));
-	memset(settlDetails->SumOfTrAmount,'0',sizeof(settlDetails->SumOfTrAmount));
-
+	settlDetails->activation_approved = 0;
+	settlDetails->activation_declined = 0;
+	settlDetails->activation_total = 0;
+	settlDetails->reset_approved = 0;
+	settlDetails->reset_declined = 0;
+    settlDetails->reset_total = 0;
+	settlDetails->change_approved = 0;
+	settlDetails->change_declined = 0;
+	settlDetails->change_total = 0;
+	settlDetails->approved_total = 0;
+	settlDetails->decline_total = 0;
+	settlDetails->total_txns = 0;
 
 
 	
-	settlDetails->SaleAmount[12]=0;//putting null char
-	settlDetails->RefundAmount[12]=0;//putting null char
-    settlDetails->CreditdAmount[12]=0;//putting null char
-	settlDetails->DebitAmount[12]=0;//putting null char
-	settlDetails->SumOfTrAmount[12]=0;//putting null char
+	//settlDetails->SaleAmount[12]=0;//putting null char
+	//settlDetails->RefundAmount[12]=0;//putting null char
+    //settlDetails->CreditdAmount[12]=0;//putting null char
+	//settlDetails->DebitAmount[12]=0;//putting null char
+	//settlDetails->SumOfTrAmount[12]=0;//putting null char
 		
 	ifp = fopen(TRANS_DETAILS_FILE, "r");
 	if (ifp == NULL)
@@ -491,142 +496,55 @@ short RetriveDataForTotalReportReciept(TrDetails *transDetails,TotalReportDetail
 	while (fread(transDetails, sizeof(TrDetails), 1, ifp) != 0)
 	{
 		count++;
-		//Sales
-		if((transDetails->TransTypeFlg == SALEMSGTYPE_CASE ))//if trans is debit sale type
+		//Activation
+		if(transDetails->TransTypeFlg == ACTIVATIONMSGTYPE_CASE)//if transaction is activation
 		{
-			fSalAmount = fSalAmount + (float)atof(transDetails->amount);//need to put void also
-			settlDetails->SalesCount++;
-    		//fSumTransAmount = fSumTransAmount + (float)atof(transDetails->amount);//need to put void also
-			settlDetails->SumTransCount++;
-			settlDetails->DebitCount++;
-			fDebitAmount = fDebitAmount + (float)atof(transDetails->amount); 
-			sprintf(settlDetails->SaleAmount,"%0.02f",fSalAmount);
-			/*
-    		if(transDetails->TransMethord_Flag==edebit)
+			if (!strcmp(transDetails->trResponse, APPROVED_MSG))
+			//if (!strcmp(transDetails->trResponse, "DECLINE"))
 			{
-				settlDetails->DebitCount++;
-				fDebitAmount = fDebitAmount + (float)atof(transDetails->amount);     
+				settlDetails->activation_approved++;
+				settlDetails->activation_total++;
+				settlDetails->total_txns++;
 			}
-			else if(transDetails->TransMethord_Flag==ecredit)
+			else
 			{
-				settlDetails->CreditCount++;
-				fCreditAmount = fCreditAmount + (float)atof(transDetails->amount);     
-			}*/
+				settlDetails->activation_declined++;
+				settlDetails->activation_total++;
+				settlDetails->total_txns++;
+			}
 		}
-		//Withdrawal
-		if(transDetails->TransTypeFlg == WITHDRAWAL_MSG_TYPE_CASE)//if trans is debit sale type
+		//Pin change
+		else if(transDetails->TransTypeFlg == PINCHANGEMSGTYPE_CASE)
 		{
-			fWithAmount = fWithAmount + (float)atof(transDetails->amount);//need to put void also
-			settlDetails->WithdrawCount++;
-			//fSumTransAmount = fSumTransAmount + (float)atof(transDetails->amount);//need to put void also
-			settlDetails->SumTransCount++;
-			settlDetails->DebitCount++;
-			fDebitAmount = fDebitAmount + (float)atof(transDetails->amount);     
-			//sprintf(settlDetails->WithdrawAmount,"%0.02f",fWithAmount);
-            /*
-			if(transDetails->TransMethord_Flag==edebit)
+			if (!strcmp(transDetails->trResponse, APPROVED_MSG))
 			{
-				settlDetails->DebitCount++;
-				fDebitAmount = fDebitAmount + (float)atof(transDetails->amount);     
-            }
-			else if(transDetails->TransMethord_Flag==ecredit)
+				settlDetails->change_approved++;
+				settlDetails->change_total++;
+				settlDetails->total_txns++;
+			}
+			else
 			{
-				settlDetails->CreditCount++;
-				fCreditAmount = fCreditAmount + (float)atof(transDetails->amount);     
-			}*/
+				settlDetails->change_declined++;
+				settlDetails->change_total++;
+				settlDetails->total_txns++;
+			}
 		}
-		//Refund
-		else if((transDetails->TransTypeFlg== REFUNDMSGTYPE_CASE ))//if trans is debit refund type
+		//Pin reset
+		else if (transDetails->TransTypeFlg == PINRESETMSGTYPE_CASE)
 		{
-			fRefAmount = fRefAmount + (float)atof(transDetails->amount);
-			settlDetails->RefundCount++;
-		    //fSumTransAmount = fSumTransAmount - (float)atof(transDetails->amount);//need to put void also
-			settlDetails->SumTransCount++;
-			settlDetails->CreditCount++;
-			fCreditAmount = fCreditAmount - (float)atof(transDetails->amount);     
-			//sprintf(settlDetails->RefundAmount,"%0.02f",fRefAmount);
-			/*
-			if(transDetails->TransMethord_Flag==edebit)
+			if (!strcmp(transDetails->trResponse, APPROVED_MSG))
 			{
-				settlDetails->DebitCount++;
-				fDebitAmount = fDebitAmount - (float)atof(transDetails->amount);     
-        	}
-			else if(transDetails->TransMethord_Flag==ecredit)
+				settlDetails->reset_approved++;
+				settlDetails->reset_total++;
+				settlDetails->total_txns++;
+			}
+			else
 			{
-				settlDetails->CreditCount++;
-				fCreditAmount = fCreditAmount - (float)atof(transDetails->amount);     
-			}*/
+				settlDetails->reset_declined++;
+				settlDetails->reset_total++;
+				settlDetails->total_txns++;
+			}
 		}
-		//Agency Bank Deposit
-		else if((transDetails->TransTypeFlg== DEPOSIT_MSG_TYPE_CASE ))//if trans is Deposit type
-		{
-			fDepAmount = fDepAmount + (float)atof(transDetails->amount);
-			settlDetails->DepositCount++;
-		    fSumTransAmount = fSumTransAmount - (float)atof(transDetails->amount);//need to put void also
-			settlDetails->SumTransCount++;
-			settlDetails->CreditCount++;
-			fCreditAmount = fCreditAmount - (float)atof(transDetails->amount);     
-			//sprintf(settlDetails->DepositAmount,"%0.02f",fDepAmount);
-			/*
-			if(transDetails->TransMethord_Flag==edebit)
-			{
-				settlDetails->DebitCount++;
-				fDebitAmount = fDebitAmount - (float)atof(transDetails->amount);     
-        	}
-			else if(transDetails->TransMethord_Flag==ecredit)
-			{
-				settlDetails->CreditCount++;
-				fCreditAmount = fCreditAmount - (float)atof(transDetails->amount);     
-			}*/
-		}
-		//Transfer
-		else if((transDetails->TransTypeFlg== TRANSFER_MSG_TYPE_CASE ))//if trans is Deposit type
-		{
-			fTraAmount = fTraAmount + (float)atof(transDetails->amount);
-			settlDetails->TransferCount++;
-		    fSumTransAmount = fSumTransAmount + (float)atof(transDetails->amount);//need to put void also
-			settlDetails->SumTransCount++;
-			//fDebitAmount = fDebitAmount + (float)atof(transDetails->amount);     
-			//fCreditAmount = fCreditAmount - (float)atof(transDetails->amount);     
-			//sprintf(settlDetails->TransferAmount,"%0.02f",fTraAmount);
-			/*if(transDetails->TransMethord_Flag==edebit)
-			{
-				settlDetails->DebitCount++;
-				fDebitAmount = fDebitAmount - (float)atof(transDetails->amount);     
-        	}
-			else if(transDetails->TransMethord_Flag==ecredit)
-			{
-				settlDetails->CreditCount++;
-				fCreditAmount = fCreditAmount - (float)atof(transDetails->amount);     
-			}*/
-		}
-		//Void
-		else if((transDetails->TransTypeFlg == VOIDMSGTYPE_CASE))//if trans is debit refund type
-		{
-			fVoidAmount = fVoidAmount + (float)atof(transDetails->amount);
-			settlDetails->VoidCount++;
-			LOG_PRINTF(("Receipt VOID-Processing code - %s",transDetails->processingCode));
-			if(!strncmp(transDetails->processingCode,"02",2))
-				fDebitAmount = fDebitAmount - (float)atof(transDetails->amount);     
-				//fSumTransAmount = fSumTransAmount -  (float)atof(transDetails->amount);//need to put void also
-			else if(!strncmp(transDetails->processingCode,"22",2))
-				fCreditAmount = fCreditAmount + (float)atof(transDetails->amount);     
-				//fSumTransAmount = fSumTransAmount +  (float)atof(transDetails->amount);//need to put void also
-			settlDetails->SumTransCount--;
-			//sprintf(settlDetails->VoidAmount,"%0.02f",fVoidAmount);
-			/*
-			if(transDetails->TransMethord_Flag==edebit)
-			{
-				settlDetails->DebitCount--;
-				fDebitAmount = fDebitAmount - (float)atof(transDetails->amount);     
-            }
-			else if(transDetails->TransMethord_Flag==ecredit)
-			{
-				settlDetails->CreditCount--;
-				fCreditAmount = fCreditAmount - (float)atof(transDetails->amount);     
-			}*/
-		}
-		
 	}
 	if(count == 0)//if no data in file
     {
@@ -645,86 +563,58 @@ short RetriveDataForTotalReportReciept(TrDetails *transDetails,TotalReportDetail
 		}
     }
 
-	fSumTransAmount = fDebitAmount+fCreditAmount;
-
-	sprintf(temp,"%f",fSalAmount);
-	sprintf(settlDetails->SaleAmount,"%8.02f",fSalAmount);
-    if(LOG_STATUS == LOG_ENABLE)
-    {
-		LOG_PRINTF(("sale amount =%s",settlDetails->SaleAmount));
-		LOG_PRINTF(("sale count =%d",settlDetails->SalesCount));
-    }
 	
-	memset(temp,0,sizeof(temp));
-	sprintf(temp,"%f",fWithAmount);
-	sprintf(settlDetails->WithdrawAmount,"%8.02f",fWithAmount);
-	if(LOG_STATUS == LOG_ENABLE)
-	{
-		LOG_PRINTF(("Withdrawal amount =%s",settlDetails->WithdrawAmount));
-		LOG_PRINTF(("Withdrawal count =%d",settlDetails->WithdrawCount));
-	}
-	memset(temp,0,sizeof(temp));
-	sprintf(temp,"%f",fRefAmount);
-	sprintf(settlDetails->RefundAmount,"%8.02f",fRefAmount);
-	if(LOG_STATUS == LOG_ENABLE)
-    {
-		LOG_PRINTF(("refund amount =%s",settlDetails->RefundAmount));
-		LOG_PRINTF(("refund count =%d",settlDetails->RefundCount));
-    }
-	memset(temp,0,sizeof(temp));
-	sprintf(temp,"%f",fDepAmount);
-	sprintf(settlDetails->DepositAmount,"%8.02f",fDepAmount);
-	if(LOG_STATUS == LOG_ENABLE)
-    {
-		LOG_PRINTF(("Deposit amount =%s",settlDetails->DepositAmount));
-		LOG_PRINTF(("Deposit count =%d",settlDetails->DepositCount));
-    }
-	memset(temp,0,sizeof(temp));
-	sprintf(temp,"%f",fTraAmount);
-	sprintf(settlDetails->TransferAmount,"%8.02f",fTraAmount);
-	if(LOG_STATUS == LOG_ENABLE)
-    {
-		LOG_PRINTF(("Transfer amount =%s",settlDetails->TransferAmount));
-		LOG_PRINTF(("Transfer count =%d",settlDetails->TransferCount));
-    }
-	memset(temp,0,sizeof(temp));
-	sprintf(temp,"%f",fVoidAmount);
-	sprintf(settlDetails->VoidAmount,"%8.02f",fVoidAmount);
-    if(LOG_STATUS == LOG_ENABLE)
-    {
-		LOG_PRINTF(("Void amount =%s",settlDetails->VoidAmount));
-  		LOG_PRINTF(("Void count =%d",settlDetails->VoidCount));
-    }
-    memset(temp,0,sizeof(temp));
-	sprintf(temp,"%f",fDebitAmount);
-	sprintf(settlDetails->DebitAmount,"%8.02f",fDebitAmount);
-	if(LOG_STATUS == LOG_ENABLE)
-    {
-		LOG_PRINTF(("Dedit amount =%s",settlDetails->DebitAmount));
-		LOG_PRINTF(("Dedit count =%d",settlDetails->DebitCount));
-    }
-    memset(temp,0,sizeof(temp));
-	sprintf(temp,"%f",fCreditAmount);
-	sprintf(settlDetails->CreditdAmount,"%8.02f",fCreditAmount);
-	if(LOG_STATUS == LOG_ENABLE)
-    {
-		LOG_PRINTF(("Credit amount =%s",settlDetails->CreditdAmount));
-		LOG_PRINTF(("Credit count =%d",settlDetails->CreditCount));
-    }
-	memset(temp,0,sizeof(temp));
-    sprintf(temp,"%f",fSumTransAmount);
-	sprintf(settlDetails->SumOfTrAmount,"%8.02f",fSumTransAmount);
-    if(LOG_STATUS == LOG_ENABLE)
-    {
-		LOG_PRINTF(("Sum amount =%s",settlDetails->SumOfTrAmount));
-		LOG_PRINTF(("Sum count =%d",settlDetails->SumTransCount));
-    }
 	
 		//--------------- ----------------- ---------------------
 
 	fclose(ifp);
 	return _SUCCESS;
 
+}
+
+short ClearLogs()
+{
+	int ret;
+	char ch = 0;
+
+	window(1, 1, 30, 20);
+	clrscr();
+	error_tone();
+	write_at("CLEAR LOGS", strlen("CLEAR LOGS"), (30 - strlen("CLEAR LOGS")) / 2, 10);
+	//write_at("CONTINUE WITHOUT PAPER?", strlen("CONTINUE WITHOUT PAPER?"), (30 - strlen("CONTINUE WITHOUT PAPER?")) / 2, 11);
+	write_at(Dmsg[PRESS_ENTER_FOR_YES].dispMsg, strlen(Dmsg[PRESS_ENTER_FOR_YES].dispMsg), Dmsg[PRESS_ENTER_FOR_YES].x_cor, Dmsg[PRESS_ENTER_FOR_YES].y_cor);
+	write_at(Dmsg[PRESS_CANCEL_FOR_NO].dispMsg, strlen(Dmsg[PRESS_CANCEL_FOR_NO].dispMsg), Dmsg[PRESS_CANCEL_FOR_NO].x_cor, Dmsg[PRESS_CANCEL_FOR_NO].y_cor);
+	ClearKbdBuff();
+	// KBD_FLUSH();
+	do
+	{
+		ch = get_char();
+	} while ((ch != KEY_CR) && (ch != KEY_CANCEL) && (ch != KEY_STR));
+	LOG_PRINTF(("ch = %d", ch));
+	if (ch == KEY_CR)
+	{
+		ret = CleanFileData();
+
+		if (ret == _SUCCESS)
+		{
+			clrscr();
+			write_at(Dmsg[LOG_CLEARED].dispMsg, strlen(Dmsg[LOG_CLEARED].dispMsg), Dmsg[LOG_CLEARED].x_cor, Dmsg[LOG_CLEARED].y_cor);
+			SVC_WAIT(2000);
+			ClearKbdBuff();
+			KBD_FLUSH();
+			return _SUCCESS;
+		}
+		else
+		{
+			clrscr();
+			write_at(Dmsg[LOG_NOT_CLEARED].dispMsg, strlen(Dmsg[LOG_NOT_CLEARED].dispMsg), Dmsg[LOG_NOT_CLEARED].x_cor, Dmsg[LOG_NOT_CLEARED].y_cor);
+			SVC_WAIT(2000);
+			ClearKbdBuff();
+			KBD_FLUSH();
+			return _FAIL;
+		}
+	}
+	return _SUCCESS;
 }
 
 /*********************************************************************************************************
@@ -744,6 +634,8 @@ short TotalReportReciept(char *recieptType)
 	char sysDate[9] = {0};				// format date
     char sysTime[11] = {0};				// format time
 	char countTrans[4]={0};
+	char tempbuf[100] = { 0 };
+	char ch = 0;
 	
     short iRet =0 ;
 	short i=0;
@@ -816,55 +708,94 @@ short TotalReportReciept(char *recieptType)
 	print (_NEW_LINE);
 	print (_NEW_LINE);
 	print (_NEW_LINE);
-	printCenter((char *)"SUMMARIZED NET AMOUNT",PRINT_BOLD);
+	printCenter((char *)"ACTIVITY SUMMARY",PRINT_BOLD);
 		
 	print (_NEW_LINE);
 	print (_NEW_LINE);
 				
-	print ("SALE");
-	print ("              ");
-	paddCount(settlDetails.SalesCount,countTrans);
-	print (countTrans);
-	print ("            ");
-	print (settlDetails.SaleAmount);
-	print (_NEW_LINE);//for Withdraw
-	print ("WITHDRAW");
-	print ("          ");
-	paddCount(settlDetails.WithdrawCount,countTrans);
-	print (countTrans);
-	print ("            ");
-	print (settlDetails.WithdrawAmount);
-	print (_NEW_LINE);//for refund
-	print ("REFUND");
-	print ("            ");
-	paddCount(settlDetails.RefundCount,countTrans);
-	print (countTrans);
-	print ("            ");
-	print (settlDetails.RefundAmount);
-	print (_NEW_LINE);//for Deposit
-	print ("DEPOSIT");
-	print ("           ");
-	paddCount(settlDetails.DepositCount,countTrans);
-	print (countTrans);
-	print ("            ");
-	print (settlDetails.DepositAmount);
-	print (_NEW_LINE);//for Transfer
-	print ("TRANSFER");
-	print ("          ");
-	paddCount(settlDetails.TransferCount,countTrans);
-	print (countTrans);
-	print ("            ");
-	print (settlDetails.TransferAmount);
+	print ("CARD ACTIVATION");
+	print(_NEW_LINE);
+	sprintf(tempbuf, "APPROVED: %d ", settlDetails.activation_approved);
+	print (tempbuf);
+	print(_NEW_LINE);
+	sprintf(tempbuf, "DECLINED: %d ", settlDetails.activation_declined);
+	print(tempbuf);
+	print(_NEW_LINE);
+	sprintf(tempbuf, "TOTAL ACTIVATIONS: %d ", settlDetails.activation_total);
+	print(tempbuf);
+	print(_NEW_LINE);
+	print(_NEW_LINE);
+	print("PIN CHANGE");
+	print(_NEW_LINE);
+	sprintf(tempbuf, "APPROVED: %d ", settlDetails.change_approved);
+	print(tempbuf);
+	print(_NEW_LINE);
+	sprintf(tempbuf, "DECLINED: %d ", settlDetails.change_declined);
+	print(tempbuf);
+	print(_NEW_LINE);
+	sprintf(tempbuf, "TOTAL PIN CHANGE: %d ", settlDetails.change_total);
+	print(tempbuf);
+	print(_NEW_LINE);
+	print(_NEW_LINE);
+	print("PIN RESET");
+	print(_NEW_LINE);
+	sprintf(tempbuf, "APPROVED: %d ", settlDetails.reset_approved);
+	print(tempbuf);
+	print(_NEW_LINE);
+	sprintf(tempbuf, "DECLINED: %d ", settlDetails.reset_declined);
+	print(tempbuf);
+	print(_NEW_LINE);
+	sprintf(tempbuf, "TOTAL PIN RESET: %d ", settlDetails.reset_total);
+	print(tempbuf);
+	print(_NEW_LINE);
+	print(_NEW_LINE);
+	sprintf(tempbuf, "GRAND TOTAL APPROVED: %d ", settlDetails.activation_approved + settlDetails.change_approved + settlDetails.reset_approved);
+	print(tempbuf);
+	print(_NEW_LINE);
+	sprintf(tempbuf, "GRAND TOTAL DECLINED: %d ", settlDetails.activation_declined + settlDetails.change_declined + settlDetails.reset_declined);
+	print(tempbuf);
+	//paddCount(settlDetails.SalesCount,countTrans);
+	//print (countTrans);
+	//print ("            ");
+	//print (settlDetails.SaleAmount);
+	//print (_NEW_LINE);//for Withdraw
+	//print ("WITHDRAW");
+	//print ("          ");
+	//paddCount(settlDetails.WithdrawCount,countTrans);
+	//print (countTrans);
+	//print ("            ");
+	//print (settlDetails.WithdrawAmount);
+	//print (_NEW_LINE);//for refund
+	//print ("REFUND");
+	//print ("            ");
+	//paddCount(settlDetails.RefundCount,countTrans);
+	//print (countTrans);
+	//print ("            ");
+	//print (settlDetails.RefundAmount);
+	//print (_NEW_LINE);//for Deposit
+	//print ("DEPOSIT");
+	//print ("           ");
+	//paddCount(settlDetails.DepositCount,countTrans);
+	//print (countTrans);
+	//print ("            ");
+	//print (settlDetails.DepositAmount);
+	//print (_NEW_LINE);//for Transfer
+	//print ("TRANSFER");
+	//print ("          ");
+	//paddCount(settlDetails.TransferCount,countTrans);
+	//print (countTrans);
+	//print ("            ");
+	//print (settlDetails.TransferAmount);
 
-	print (_NEW_LINE);
-	printCenter((char *)CREATE_LINE,PRINT_BOLD);
+	//print (_NEW_LINE);
+	//printCenter((char *)CREATE_LINE,PRINT_BOLD);
 
-	print (_NEW_LINE);//for Sum
-	print ("SUM");
-	print ("               ");
-	paddCount(settlDetails.SumTransCount,countTrans);
-	print (countTrans);
-	print ("            ");
+	//print (_NEW_LINE);//for Sum
+	//print ("SUM");
+	//print ("               ");
+	//paddCount(settlDetails.SumTransCount,countTrans);
+	//print (countTrans);
+	//print ("            ");
 	/*
 	print (_NEW_LINE);//for void
 	print ("VOID");
@@ -875,46 +806,65 @@ short TotalReportReciept(char *recieptType)
 	print (settlDetails.VoidAmount);	
     //print (settlDetails.SumOfTrAmount);		//Commented for Agency Bank 
 	*/
-    print (_NEW_LINE);
-	print (_NEW_LINE);
+    //print (_NEW_LINE);
+	//print (_NEW_LINE);
 		
-	printCenter((char *)"TOTAL",PRINT_BOLD);
-	print (_NEW_LINE);
-	print (_NEW_LINE);
+	//printCenter((char *)"TOTAL",PRINT_BOLD);
+	//print (_NEW_LINE);
+	//print (_NEW_LINE);
 
-	print ("DEBIT");//for Debit
-	print ("             ");
-	paddCount(settlDetails.DebitCount,countTrans);
-	print (countTrans);
-	print ("            ");
+	//print ("DEBIT");//for Debit
+	//print ("             ");
+	//paddCount(settlDetails.DebitCount,countTrans);
+	//print (countTrans);
+	//print ("            ");
 	
-    print (settlDetails.DebitAmount);
-    print (_NEW_LINE);//for Credit
-	print ("CREDIT");
-	print ("            ");
-	paddCount(settlDetails.CreditCount,countTrans);
-	print (countTrans);
-	print ("            ");
+    //print (settlDetails.DebitAmount);
+    //print (_NEW_LINE);//for Credit
+	//print ("CREDIT");
+	//print ("            ");
+	//paddCount(settlDetails.CreditCount,countTrans);
+	//print (countTrans);
+	//print ("            ");
 		
-    print (settlDetails.CreditdAmount);
-	print (_NEW_LINE);
-	print (CREATE_LINE);
-    print (_NEW_LINE);//for Sum
-	print ("SUM");
-	print ("               ");
-	paddCount(settlDetails.SumTransCount,countTrans);
-	print (countTrans);
-	print ("            ");
+    //print (settlDetails.CreditdAmount);
+	//print (_NEW_LINE);
+	//print (CREATE_LINE);
+    //print (_NEW_LINE);//for Sum
+	//print ("SUM");
+	//print ("               ");
+	//paddCount(settlDetails.SumTransCount,countTrans);
+	//print (countTrans);
+	//print ("            ");
 		
-    print (settlDetails.SumOfTrAmount);
-	print (_NEW_LINE);
-	print (_NEW_LINE);
+    //print (settlDetails.SumOfTrAmount);
+	//print (_NEW_LINE);
+	//print (_NEW_LINE);
 
 	printCenter((char *)CREATE_LINE,PRINT_BOLD);
 	printCenter((char *)"END",PRINT_BOLD);
 
     for(i=0;i<8;i++)
 		print (_NEW_LINE);
+
+	window(1, 1, 30, 20);
+	clrscr();
+	error_tone();
+	write_at("CLEAR LOGS", strlen("CLEAR LOGS"), (30 - strlen("CLEAR LOGS")) / 2, 10);
+	//write_at("CONTINUE WITHOUT PAPER?", strlen("CONTINUE WITHOUT PAPER?"), (30 - strlen("CONTINUE WITHOUT PAPER?")) / 2, 11);
+	write_at(Dmsg[PRESS_ENTER_FOR_YES].dispMsg, strlen(Dmsg[PRESS_ENTER_FOR_YES].dispMsg), Dmsg[PRESS_ENTER_FOR_YES].x_cor, Dmsg[PRESS_ENTER_FOR_YES].y_cor);
+	write_at(Dmsg[PRESS_CANCEL_FOR_NO].dispMsg, strlen(Dmsg[PRESS_CANCEL_FOR_NO].dispMsg), Dmsg[PRESS_CANCEL_FOR_NO].x_cor, Dmsg[PRESS_CANCEL_FOR_NO].y_cor);
+	ClearKbdBuff();
+	// KBD_FLUSH();
+	do
+	{
+		ch = get_char();
+	} while ((ch != KEY_CR) && (ch != KEY_CANCEL) && (ch != KEY_STR));
+	LOG_PRINTF(("ch = %d", ch));
+	if (ch == KEY_CR)
+	{
+		ClearLogs();
+	}
 		
 	clrscr();
     return _SUCCESS;
@@ -938,28 +888,28 @@ short RetriveDataForTransDetailsReciept(TrDetails *transDetails,TotalReportDetai
     float fDebitAmount = 0.00;
     float fSumTransAmount = 0.00;
     
-		settlDetails->SalesCount = 0;
-		settlDetails->RefundCount = 0;
-    settlDetails->VoidCount = 0;
-    settlDetails->CreditCount = 0;
-		settlDetails->DebitCount = 0;
+		//settlDetails->SalesCount = 0;
+		//settlDetails->RefundCount = 0;
+    //settlDetails->VoidCount = 0;
+    //settlDetails->CreditCount = 0;
+		//settlDetails->DebitCount = 0;
 
-    settlDetails->SumTransCount = 0;
+//settlDetails->SumTransCount = 0;
 		
 		memset(transDetails,0,sizeof(TrDetails));
-    memset(settlDetails->SaleAmount,'0',sizeof(settlDetails->SaleAmount));
-		memset(settlDetails->RefundAmount,'0',sizeof(settlDetails->RefundAmount));
-    memset(settlDetails->DebitAmount,'0',sizeof(settlDetails->DebitAmount));
-		memset(settlDetails->CreditdAmount,'0',sizeof(settlDetails->CreditdAmount));
+   // memset(settlDetails->SaleAmount,'0',sizeof(settlDetails->SaleAmount));
+	//	memset(settlDetails->RefundAmount,'0',sizeof(settlDetails->RefundAmount));
+   // memset(settlDetails->DebitAmount,'0',sizeof(settlDetails->DebitAmount));
+	//	memset(settlDetails->CreditdAmount,'0',sizeof(settlDetails->CreditdAmount));
 
-    memset(settlDetails->SumOfTrAmount,'0',sizeof(settlDetails->SumOfTrAmount));
+   // memset(settlDetails->SumOfTrAmount,'0',sizeof(settlDetails->SumOfTrAmount));
 	  
-		settlDetails->SaleAmount[12]=0;//putting null char
-		settlDetails->RefundAmount[12]=0;//putting null char
-    settlDetails->CreditdAmount[12]=0;//putting null char
-		settlDetails->DebitAmount[12]=0;//putting null char
+	//	settlDetails->SaleAmount[12]=0;//putting null char
+	//	settlDetails->RefundAmount[12]=0;//putting null char
+   // settlDetails->CreditdAmount[12]=0;//putting null char
+	//	settlDetails->DebitAmount[12]=0;//putting null char
 
-    settlDetails->SumOfTrAmount[12]=0;//putting null char
+  //  settlDetails->SumOfTrAmount[12]=0;//putting null char
 		
 		ifp = fopen(TRANS_DETAILS_FILE, "r");
 		if (ifp == NULL)
@@ -980,20 +930,20 @@ short RetriveDataForTransDetailsReciept(TrDetails *transDetails,TotalReportDetai
 				{
 						
 						fSalAmount = fSalAmount + (float)atof(transDetails->amount);//need to put void also
-						settlDetails->SalesCount++;
+						//settlDetails->SalesCount++;
           
             fSumTransAmount = fSumTransAmount + (float)atof(transDetails->amount);//need to put void also
-						settlDetails->SumTransCount++;
+						//settlDetails->SumTransCount++;
             
             if(transDetails->TransMethord_Flag==edebit)
             {
-              settlDetails->DebitCount++;
+              //settlDetails->DebitCount++;
               fDebitAmount = fDebitAmount + (float)atof(transDetails->amount);     
              
             }
             else if(transDetails->TransMethord_Flag==ecredit)
             {
-              settlDetails->CreditCount++;
+              //settlDetails->CreditCount++;
               fCreditAmount = fCreditAmount + (float)atof(transDetails->amount);     
             }
 						
@@ -1002,19 +952,19 @@ short RetriveDataForTransDetailsReciept(TrDetails *transDetails,TotalReportDetai
 				{
 						
 						fRefAmount = fRefAmount + (float)atof(transDetails->amount);
-						settlDetails->RefundCount++;
+						//settlDetails->RefundCount++;
 
             fSumTransAmount = fSumTransAmount - (float)atof(transDetails->amount);//need to put void also
-						settlDetails->SumTransCount++;
+						//settlDetails->SumTransCount++;
              if(transDetails->TransMethord_Flag==edebit)
             {
-               settlDetails->DebitCount++;
+              // settlDetails->DebitCount++;
                fDebitAmount = fDebitAmount - (float)atof(transDetails->amount);     
               
             }
             else if(transDetails->TransMethord_Flag==ecredit)
             {
-              settlDetails->CreditCount++;
+             // settlDetails->CreditCount++;
               fCreditAmount = fCreditAmount - (float)atof(transDetails->amount);     
             }
 						
@@ -1023,19 +973,19 @@ short RetriveDataForTransDetailsReciept(TrDetails *transDetails,TotalReportDetai
 				{
 						
 						fVoidAmount = fVoidAmount + (float)atof(transDetails->amount);
-						settlDetails->VoidCount++;
+						//settlDetails->VoidCount++;
 						
             fSumTransAmount = fSumTransAmount -  (float)atof(transDetails->amount);//need to put void also
-						settlDetails->SumTransCount--;
+						//settlDetails->SumTransCount--;
             if(transDetails->TransMethord_Flag==edebit)
             {
-              settlDetails->DebitCount--;
+             //settlDetails->DebitCount--;
               fDebitAmount = fDebitAmount - (float)atof(transDetails->amount);     
               
             }
             else if(transDetails->TransMethord_Flag==ecredit)
             {
-              settlDetails->CreditCount--;
+              //settlDetails->CreditCount--;
               fCreditAmount = fCreditAmount - (float)atof(transDetails->amount);     
             }
 				}
@@ -1058,58 +1008,58 @@ short RetriveDataForTransDetailsReciept(TrDetails *transDetails,TotalReportDetai
       }
     }
 		sprintf(temp,"%f",fSalAmount);
-		sprintf(settlDetails->SaleAmount,"%8.02f",fSalAmount);
+		//sprintf(settlDetails->SaleAmount,"%8.02f",fSalAmount);
     if(LOG_STATUS == LOG_ENABLE)
     {
-		  LOG_PRINTF(("sale amount =%s",settlDetails->SaleAmount));
-		  LOG_PRINTF(("sale count =%d",settlDetails->SalesCount));
+		//  LOG_PRINTF(("sale amount =%s",settlDetails->SaleAmount));
+		//  LOG_PRINTF(("sale count =%d",settlDetails->SalesCount));
     }
 
 		memset(temp,0,sizeof(temp));
 		sprintf(temp,"%f",fRefAmount);
-		sprintf(settlDetails->RefundAmount,"%8.02f",fRefAmount);
+		//sprintf(settlDetails->RefundAmount,"%8.02f",fRefAmount);
     if(LOG_STATUS == LOG_ENABLE)
     {
-		  LOG_PRINTF(("refund amount =%s",settlDetails->RefundAmount));
-		  LOG_PRINTF(("refund count =%d",settlDetails->RefundCount));
+		//  LOG_PRINTF(("refund amount =%s",settlDetails->RefundAmount));
+		//  LOG_PRINTF(("refund count =%d",settlDetails->RefundCount));
     }
 
 
     memset(temp,0,sizeof(temp));
 		sprintf(temp,"%f",fVoidAmount);
-		sprintf(settlDetails->VoidAmount,"%8.02f",fVoidAmount);
+		//sprintf(settlDetails->VoidAmount,"%8.02f",fVoidAmount);
     if(LOG_STATUS == LOG_ENABLE)
     {
-      LOG_PRINTF(("Void amount =%s",settlDetails->VoidAmount));
-		  LOG_PRINTF(("Void count =%d",settlDetails->VoidCount));
+    //  LOG_PRINTF(("Void amount =%s",settlDetails->VoidAmount));
+		//  LOG_PRINTF(("Void count =%d",settlDetails->VoidCount));
     }
 
     memset(temp,0,sizeof(temp));
 		sprintf(temp,"%f",fDebitAmount);
-		sprintf(settlDetails->DebitAmount,"%8.02f",fDebitAmount);
+		//sprintf(settlDetails->DebitAmount,"%8.02f",fDebitAmount);
     if(LOG_STATUS == LOG_ENABLE)
     {
-		  LOG_PRINTF(("Debit amount =%s",settlDetails->DebitAmount));
-		  LOG_PRINTF(("Debit count =%d",settlDetails->DebitCount));
+		//  LOG_PRINTF(("Debit amount =%s",settlDetails->DebitAmount));
+		 // LOG_PRINTF(("Debit count =%d",settlDetails->DebitCount));
     }
 
    
     memset(temp,0,sizeof(temp));
 		sprintf(temp,"%f",fCreditAmount);
-		sprintf(settlDetails->CreditdAmount,"%8.02f",fCreditAmount);
+		//sprintf(settlDetails->CreditdAmount,"%8.02f",fCreditAmount);
     if(LOG_STATUS == LOG_ENABLE)
     {
-		  LOG_PRINTF(("Credit amount =%s",settlDetails->CreditdAmount));
-		  LOG_PRINTF(("Credit count =%d",settlDetails->CreditCount));
+		  //LOG_PRINTF(("Credit amount =%s",settlDetails->CreditdAmount));
+		  //LOG_PRINTF(("Credit count =%d",settlDetails->CreditCount));
     }
 
      memset(temp,0,sizeof(temp));
      sprintf(temp,"%f",fSumTransAmount);
-		 sprintf(settlDetails->SumOfTrAmount,"%8.02f",fSumTransAmount);
+		// sprintf(settlDetails->SumOfTrAmount,"%8.02f",fSumTransAmount);
      if(LOG_STATUS == LOG_ENABLE)
      {
-		  LOG_PRINTF(("Sum of Tr amount =%s",settlDetails->SumOfTrAmount));
-		  LOG_PRINTF(("Sum of Tr count =%d",settlDetails->SumTransCount));
+		  //LOG_PRINTF(("Sum of Tr amount =%s",settlDetails->SumOfTrAmount));
+		  //LOG_PRINTF(("Sum of Tr count =%d",settlDetails->SumTransCount));
      }
 
 		//--------------- ----------------- ---------------------
@@ -1136,6 +1086,7 @@ short TransactionDetailsReciept(void)
 		char sysDate[9] = {0};				// format date
     char sysTime[9] = {0};				// format time
 		char countTrans[4]={0};
+		char ch = 0;
 	
     short iRet =0,i=0 ;
     TrDetails transDetails={0};
@@ -1211,44 +1162,44 @@ short TransactionDetailsReciept(void)
 		print (_NEW_LINE);
 		print (_NEW_LINE);
 		//Sale
-		print ("SALE");
-		print ("              ");
-		paddCount(settlDetails.SalesCount,countTrans);
-		print (countTrans);
-		print ("            ");
-		print (settlDetails.SaleAmount);
+		//print ("SALE");
+		//print ("              ");
+		//paddCount(settlDetails.SalesCount,countTrans);
+		//print (countTrans);
+		//print ("            ");
+		//print (settlDetails.SaleAmount);
 		//Withdraw
-		print (_NEW_LINE);
-		print ("WITHDRAW");
-		print ("          ");
-		paddCount(settlDetails.WithdrawCount,countTrans);
-		print (countTrans);
-		print ("            ");
-		print (settlDetails.WithdrawAmount);
+		//print (_NEW_LINE);
+		//print ("WITHDRAW");
+		//print ("          ");
+		//paddCount(settlDetails.WithdrawCount,countTrans);
+		//print (countTrans);
+		//print ("            ");
+		//print (settlDetails.WithdrawAmount);
 		//Deposit
-		print (_NEW_LINE);
-		print ("DEPOSIT");
-		print ("           ");
-		paddCount(settlDetails.DepositCount,countTrans);
-		print (countTrans);
-		print ("            ");
-		print (settlDetails.DepositAmount);
+		//print (_NEW_LINE);
+		//print ("DEPOSIT");
+		//print ("           ");
+		//paddCount(settlDetails.DepositCount,countTrans);
+		//print (countTrans);
+		//print ("            ");
+		//print (settlDetails.DepositAmount);
 		//Transfer
-		print (_NEW_LINE);
-		print ("TRANSFER");
-		print ("          ");
-		paddCount(settlDetails.TransferCount,countTrans);
-		print (countTrans);
-		print ("            ");
-		print (settlDetails.TransferAmount);
+		//print (_NEW_LINE);
+		//print ("TRANSFER");
+		//print ("          ");
+		//paddCount(settlDetails.TransferCount,countTrans);
+		//print (countTrans);
+		//print ("            ");
+		//print (settlDetails.TransferAmount);
 		
-		print (_NEW_LINE);//for refund
-		print ("REFUND");
-		print ("            ");
-		paddCount(settlDetails.RefundCount,countTrans);
-		print (countTrans);
-		print ("            ");
-    print (settlDetails.RefundAmount);
+		//print (_NEW_LINE);//for refund
+		//print ("REFUND");
+		//print ("            ");
+		//paddCount(settlDetails.RefundCount,countTrans);
+		//print (countTrans);
+		//print ("            ");
+   // print (settlDetails.RefundAmount);
     /*print (_NEW_LINE);//for void
 		print ("VOID");
 		print ("              ");
@@ -1257,15 +1208,15 @@ short TransactionDetailsReciept(void)
 		print ("            ");
     print (settlDetails.VoidAmount);
 	*/
-    print (_NEW_LINE);//for Sum
-		print ("SUM");
-		print ("               ");
-		paddCount(settlDetails.SumTransCount,countTrans);
-		print (countTrans);
-		print ("            ");
+    //print (_NEW_LINE);//for Sum
+	//	print ("SUM");
+	//	print ("               ");
+		//paddCount(settlDetails.SumTransCount,countTrans);
+	//	print (countTrans);
+	//	print ("            ");
     //print (settlDetails.SumOfTrAmount);
 		 print (_NEW_LINE);
-    print (_NEW_LINE);
+//    print (_NEW_LINE);
 		
 		printCenter((char *)CREATE_LINE,PRINT_BOLD);
 
@@ -1273,34 +1224,34 @@ short TransactionDetailsReciept(void)
 
 		print (_NEW_LINE);
 		print (_NEW_LINE);
-		printCenter((char *)"TOTAL",PRINT_BOLD);
-    print (_NEW_LINE);
-		print (_NEW_LINE);
+//		printCenter((char *)"TOTAL",PRINT_BOLD);
+//    print (_NEW_LINE);
+//		print (_NEW_LINE);
 
-		print ("DEBIT");//for Debit
-		print ("             ");
-		paddCount(settlDetails.DebitCount,countTrans);
-		print (countTrans);
-		print ("            ");
-    print (settlDetails.DebitAmount);
-    print (_NEW_LINE);//for Credit
-		print ("CREDIT");
-		print ("            ");
-		paddCount(settlDetails.CreditCount,countTrans);
-		print (countTrans);
-		print ("            ");
-    print (settlDetails.CreditdAmount);
+//		print ("DEBIT");//for Debit
+//		print ("             ");
+		//paddCount(settlDetails.DebitCount,countTrans);
+//		print (countTrans);
+//		print ("            ");
+    //print (settlDetails.DebitAmount);
+ //   print (_NEW_LINE);//for Credit
+	//	print ("CREDIT");
+	//	print ("            ");
+		//paddCount(settlDetails.CreditCount,countTrans);
+	//	print (countTrans);
+	//	print ("            ");
+   // print (settlDetails.CreditdAmount);
 
-    print (_NEW_LINE);//for Sum
-		print ("SUM");
-		print ("               ");
-		paddCount(settlDetails.SumTransCount,countTrans);
-		print (countTrans);
-		print ("            ");
+   // print (_NEW_LINE);//for Sum
+	//	print ("SUM");
+	//	print ("               ");
+		//paddCount(settlDetails.SumTransCount,countTrans);
+	//	print (countTrans);
+	//	print ("            ");
 		
-    print (settlDetails.SumOfTrAmount);
-		print (_NEW_LINE);
-		print (_NEW_LINE);
+    //print (settlDetails.SumOfTrAmount);
+	//	print (_NEW_LINE);
+	//	print (_NEW_LINE);
 
     printCenter((char *)CREATE_LINE,PRINT_BOLD);
 		printCenter((char *)"END",PRINT_BOLD);
@@ -1308,6 +1259,27 @@ short TransactionDetailsReciept(void)
 		clrscr();
 		for(i=0;i<8;i++)
 				print (_NEW_LINE);
+
+
+
+	window(1, 1, 30, 20);
+	clrscr();
+	error_tone();
+	write_at("CLEAR LOGS", strlen("CLEAR LOGS"), (30 - strlen("CLEAR LOGS")) / 2, 10);
+	//write_at("CONTINUE WITHOUT PAPER?", strlen("CONTINUE WITHOUT PAPER?"), (30 - strlen("CONTINUE WITHOUT PAPER?")) / 2, 11);
+	write_at(Dmsg[PRESS_ENTER_FOR_YES].dispMsg, strlen(Dmsg[PRESS_ENTER_FOR_YES].dispMsg), Dmsg[PRESS_ENTER_FOR_YES].x_cor, Dmsg[PRESS_ENTER_FOR_YES].y_cor);
+	write_at(Dmsg[PRESS_CANCEL_FOR_NO].dispMsg, strlen(Dmsg[PRESS_CANCEL_FOR_NO].dispMsg), Dmsg[PRESS_CANCEL_FOR_NO].x_cor, Dmsg[PRESS_CANCEL_FOR_NO].y_cor);
+	ClearKbdBuff();
+	// KBD_FLUSH();
+	do
+	{
+		ch = get_char();
+	} while ((ch != KEY_CR) && (ch != KEY_CANCEL) && (ch != KEY_STR));
+	LOG_PRINTF(("ch = %d", ch));
+	if (ch == KEY_CR)
+	{
+		ClearLogs();
+	}
 
     return _SUCCESS;
 }
@@ -1341,9 +1313,9 @@ short printReciptForTransDetails(TrDetails *transDetails,char *sysTime,char *sys
 
 		while (fread(transDetails, sizeof(TrDetails), 1, ifp) != 0)
 		{
-    		print(sysTime);//Print System time
-			print("            ");
-			print(sysDate);//print System Date
+    		print(transDetails->orgTransDate);//Print System time
+			print("        ");
+			print(transDetails->orgTransTime);//print System Date
 			print (_NEW_LINE);
 
 				// print the name
@@ -1369,45 +1341,49 @@ short printReciptForTransDetails(TrDetails *transDetails,char *sysTime,char *sys
 				print (_NEW_LINE);
 
 				// print the Total Amount
-				print (_AMOUNT);
-				print ("             ");
-				print (transDetails->amount);
-				print (" ");
-				print (curr_code);
-				print ("  ");
+				//print (_AMOUNT);
+				//print ("             ");
+				//print (transDetails->amount);
+				//print (" ");
+				//print (curr_code);
+				//print ("  ");
 				
-				print (_NEW_LINE);
+				//print (_NEW_LINE);
 	
-        if(transDetails->EMV_Flag == 1)
-        {
-          if(strcmp((char *)transDetails->CARD_TYPE,"")!=0)//if card type is not empty
-          {
-				    print(transDetails->CARD_TYPE);
-            for(i =0;i<20-strlen(transDetails->CARD_TYPE);i++)
-				    print (" ");
-          }
-        }
+        //if(transDetails->EMV_Flag == 1)
+        //{
+        //  if(strcmp((char *)transDetails->CARD_TYPE,"")!=0)//if card type is not empty
+        //  {
+		//		    print(transDetails->CARD_TYPE);
+        //    for(i =0;i<20-strlen(transDetails->CARD_TYPE);i++)
+		//		    print (" ");
+        //  }
+        //}
 				
         print(transDetails->trans_Type);//sale
 				print (_NEW_LINE);
 				
-        print ("AUTHOR #:");
-        print (transDetails->AuthIdResponse);
+        //print ("AUTHOR #:");
+        //print (transDetails->AuthIdResponse);
 				print ("     ");
-        print("T.REF: ");
-        print(transDetails->RetrievalRefNo);
+        print("Trace: ");
+        print(transDetails->traceAuditNo);
 				print ("\n");
-        if(transDetails->EMV_Flag == 1)//if transaction is an EMV transaction
-        {
-				  print ("TVR: ");
-				  print (transDetails->TVR);
-          print ("     ");
-					print("TSI: ");
-					print(transDetails->TSI);
-					print (_NEW_LINE);
-        }
-				print(transDetails->trResponse);
-				print (_NEW_LINE);
+        //if(transDetails->EMV_Flag == 1)//if transaction is an EMV transaction
+        //{
+		//		  print ("TVR: ");
+		//		  print (transDetails->TVR);
+        //  print ("     ");
+		//			print("TSI: ");
+		//			print(transDetails->TSI);
+		//			print (_NEW_LINE);
+        //}
+		print("Response #: ");
+		print(transDetails->trResponse);
+		print (_NEW_LINE);
+		print("Operator ID: ");
+		print(transDetails->operatorID);
+		print(_NEW_LINE);
         printCenter((char *)CREATE_LINE,PRINT_BOLD);
 		}
 		fclose(ifp);
@@ -1459,4 +1435,89 @@ short Paperstatus()
     SVC_WAIT(300);
   }while(stat != 0);
   return _FAIL ;
+}
+
+
+short printUserAudit()
+{
+	FILE *ifp = NULL;
+	int i = 0, Pos = 0;
+	UserAudit useraudit;
+	char timeBuffer[16] = { 0 };
+	char sysDate[9] = { 0 };				// format date
+	char sysTime[11] = { 0 };				// format time
+
+
+	printCenter((char *)"End of Day Audit Report", PRINT_BOLD);
+	read_clock(timeBuffer); //reads the system clock time     
+	sprintf(sysDate, "%c%c:%c%c:%c%c", timeBuffer[8], timeBuffer[9], timeBuffer[10], timeBuffer[11], timeBuffer[12], timeBuffer[13]);// hr:min:sec
+	sprintf(sysTime, "%c%c/%c%c/%c%c", timeBuffer[4], timeBuffer[5], timeBuffer[6], timeBuffer[7], timeBuffer[2], timeBuffer[3]); // mm/dd/yy	
+	
+
+	print(_NEW_LINE);
+	print("Run Date#:");
+	print(sysTime);//Print System time
+	print("     ");
+	print(sysDate);//print System Date
+	print(_NEW_LINE);
+	print(_NEW_LINE);
+	print(_NEW_LINE);
+
+	printCenter((char *)CREATE_LINE, PRINT_BOLD);
+	print(_NEW_LINE);
+	print(_NEW_LINE);
+	
+	memset(&useraudit, 0, sizeof(UserAudit));
+	
+	ifp = fopen(USER_AUDIT_FILE, "r");
+	if (ifp == NULL)
+	{
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Failed to open the file %s\n", TRANS_DETAILS_FILE));
+		}
+		return _FAIL;
+	}
+
+	while (fread(&useraudit, sizeof(UserAudit), 1, ifp) != 0)
+	{
+		print(useraudit.Time);//Print System time
+		print("        ");
+		print(useraudit.Date);//print System Date
+		print(_NEW_LINE);
+
+		// print the name
+		print("Operator #:");
+		print(useraudit.operID);
+		print(_NEW_LINE);
+		print("Action:");
+		switch (useraudit.code)
+		{
+		case 'C':
+			print("Password Change");
+			break;
+		case 'N':
+			print("New Operator");
+			break;
+		case 'D':
+			print("Operator Deleted");
+			break;
+		case 'R':
+			print("Password Reset");
+			break;
+		}
+		
+		print(_NEW_LINE);
+		
+		print(_NEW_LINE);
+		printCenter((char *)CREATE_LINE, PRINT_BOLD);
+	}
+	fclose(ifp);
+
+	print(_NEW_LINE);
+	print(_NEW_LINE);
+	print(_NEW_LINE);
+
+
+	return _SUCCESS;
 }

@@ -37,7 +37,10 @@ short ProcessingVoidTransaction(TransactionMsgStruc *);
 short PINValidateProcessing(TransactionMsgStruc *);
 short InitCardActivation(TransactionMsgStruc *transMsg);
 short InitPinChange(TransactionMsgStruc *transMsg);
+short InitPinReset(TransactionMsgStruc *transMsg);
 short CardActivationTransactionProcessing(TransactionMsgStruc *transMsg);
 short PinChangeTransactionProcessing(TransactionMsgStruc *transMsg);
+short PinResetTransactionProcessing(TransactionMsgStruc *transMsg);
+
 
 #endif

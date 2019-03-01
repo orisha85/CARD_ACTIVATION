@@ -14,6 +14,8 @@
 #define PIN_VALIDATE			0x61
 #define CARD_ACTIVATE			0x90
 #define PIN_CHANGE				0x91
+#define PIN_RESET				0x91
+
 
 
 #define APPL_NOT_AVALBL			0x6985

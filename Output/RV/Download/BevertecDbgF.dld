@@ -20,6 +20,10 @@ BevertecLOG=P
 -i..\files\Image\Config.bmp
 -i..\files\Image\ToAccountTypeSO.bmp
 -i..\files\Image\ToAccountTypeCO.bmp
+-i..\files\Image\ToAccountTypeCO.bmp
+-i..\files\Image\operator.bmp
+-i..\files\Image\UserMgnt.bmp
+-i..\files\Image\UserMgnt2.bmp
 
 
 -i..\Files\EMV7B\Resources\A000000003.CSN
@@ -107,11 +111,11 @@ setdrive.f
 -i..\files\IMMBevertec.ini
 
 #COMPANYNAME="Bevertec CST"
-#TRACE_AUDIT_NO="612800"
+#TRACE_AUDIT_NO="612882"
 #TRACE_BATCH_NO="000011"
 #SOFTWARE_VERSION="1.0.1.17"
-#HOSTIP="192.168.4.130"
-#PORT="7005"
+#HOSTIP="192.168.231.58"
+#PORT="7555"
 #SUPER_PASSWORD="123456"
 #PASSWORD="1234"
 #PRINT_FLAG="1"
@@ -119,19 +123,42 @@ setdrive.f
 #MERCHANT_ADDRESS1="Orbitor Dr Missisauga"
 #MERCHANT_ADDRESS2="Ontario,Canada"
 
-#TERMINAL_ID="10000031"
-#CARDACCEPTERID="75250000000019"
+#TERMINAL_ID="10000026"
+#CARDACCEPTERID="300000000000155"
 #TIME_OUT_LIMIT_IN_SECOND="15"
 #REV_STATUS="0"
 #LOGPORT="COM1"
 #PIN_ENC="1"
 #TXN_ENC="0"
+#XOR=""
+
+#OPER_1_ID=""
+#OPER_1_PWD=""
+#OPER_2_ID=""
+#OPER_2_PWD=""
+#OPER_3_ID=""
+#OPER_3_PWD=""
+#OPER_4_ID=""
+#OPER_4_PWD=""
+#OPER_5_ID=""
+#OPER_5_PWD=""
+#OPER_6_ID=""
+#OPER_6_PWD=""
+#OPER_7_ID=""
+#OPER_7_PWD=""
+#OPER_8_ID=""
+#OPER_8_PWD=""
+#OPER_9_ID=""
+#OPER_9_PWD=""
+#OPER_10_ID=""
+#OPER_10_PWD=""
 
 setdrive.f
 -isetgroup.15
 -i..\files\Message\TransactionDetails.txt
 -i..\files\Message\ConfiguredMessage.txt
 -i..\files\Message\ReversalDetails.txt
+-i..\files\Message\UserAudit.txt
 
 setgroup.15
 -isetdrive.i

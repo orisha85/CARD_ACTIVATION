@@ -17,7 +17,8 @@
 
 extern char msg_id[MSG_ID_LEN+1];//5
 extern char Proc_code[PROC_CODE_LEN+1];//7
-extern BmapStruct BitmapStructOb ;
+extern BmapStruct BitmapStructOb;
+extern char loggedinOper[9];
 
 
 //short BITMAP_LEN=8;
@@ -326,8 +327,7 @@ short SaveTransDetails(TransactionMsgStruc *transMsg)
 	strcpy(transDetails.RetrievalRefNo,transMsg->RetrievalReferenceNo); //BitField 37
     strcpy(transDetails.CardAcceptorId,transMsg->CardAcceptorID); //BitField 42
 	strcpy(transDetails.NII,transMsg->NetworkInternationalId); //BitField 24
-    strcpy(transDetails.TerminalId,transMsg->TerminalID); //BitField 41
-		
+    strcpy(transDetails.TerminalId,transMsg->TerminalID); //BitField 41		
     strcpy(transDetails.PosCondCode,transMsg->POSConditionCode); //BitField 25
 	strcpy(transDetails.PosEntryMode,transMsg->POSEntryMode); //BitField 22
 	strcpy(transDetails.FromAc_No,transMsg->FromAcNo); //BitField 102
@@ -338,6 +338,8 @@ short SaveTransDetails(TransactionMsgStruc *transMsg)
 	transDetails.EMV_Flag=transMsg->EMV_Flag; 
 	transDetails.TransTypeFlg=transMsg->TrTypeFlag; 
 	transDetails.TransMethord_Flag=transMsg->TrMethordFlag;
+	strcpy(transDetails.operatorID, loggedinOper);
+
 		
 	if(LOG_STATUS == LOG_ENABLE)
     {

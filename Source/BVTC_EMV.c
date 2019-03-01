@@ -241,6 +241,9 @@ int inSetTransactionType(int TxnType)
 	case ACTIVATIONMSGTYPE_CASE:
 		type = CARD_ACTIVATE;
 		break;
+	case PINRESETMSGTYPE_CASE:
+		type = PIN_RESET;
+		break;
 	default:
 		type = TRANS_CANCELLED;
 		break;

@@ -47,18 +47,19 @@ short InitLogon(TransactionMsgStruc *transMsg)
     {
       LOG_PRINTF(("transMsg->TerminalID = =  %s ",transMsg->TerminalID));
     }
-			 
-		iRetVal = LogonProcessing(transMsg);
+
+	iRetVal = LogonProcessing(transMsg);
     if(LOG_STATUS == LOG_ENABLE)
     {
 		  LOG_PRINTF(("ret val = =  %d ",iRetVal));
     }
       
-    if(iRetVal==_SUCCESS)
-    {
-		key_injected = 0;
-		return _SUCCESS;
-    }
+	checkMasterKey();
+    //if(iRetVal==_SUCCESS)
+    //{
+	//	key_injected = 0;
+	//	return _SUCCESS;
+    //}
 
     return _FAIL;
 }
@@ -225,7 +226,7 @@ short LogonProcessing(TransactionMsgStruc *transMsg)
 				clrscr();
         if(!strcmp((char *)EncSessionKey,"")) 
         {
-		    write_at("AGENT",5,12,9);   
+		   // write_at("AGENT",5,12,9);   
 			write_at(Dmsg[DID_NOT_GET_KEY].dispMsg, strlen(Dmsg[DID_NOT_GET_KEY].dispMsg),Dmsg[DID_NOT_GET_KEY].x_cor, Dmsg[DID_NOT_GET_KEY].y_cor);
            write_at(Dmsg[PLEASE_LOGON_AGAIN].dispMsg, strlen(Dmsg[PLEASE_LOGON_AGAIN].dispMsg),Dmsg[PLEASE_LOGON_AGAIN].x_cor, Dmsg[PLEASE_LOGON_AGAIN].y_cor);
 				             

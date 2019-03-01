@@ -129,8 +129,9 @@
 #define CASHMSGTYPE									"0200"
 #define VOIDMSGTYPE									"0200"
 #define REFUNDMSGTYPE								"0200"
-#define PINCHANGEMSGTYPE						"0100"
-#define ACTIVATIONMSGTYPE						"0100"
+#define PINCHANGEMSGTYPE						"0200"
+#define ACTIVATIONMSGTYPE						"0200"
+#define PINRESETMSGTYPE							"0200"
 #define MOBILETOPUPMSGTYPE					"0200"
 #define SETTLEMENT_MSG_TYPE         "0500" 
 #define BATCH_UPLOAD_MSG_TYPE       "0320" 
@@ -154,6 +155,7 @@
 #define DEPOSIT_MSG_TYPE_CASE		14
 #define TRANSFER_MSG_TYPE_CASE		15
 #define PIN_VALIDATE_MSG_TYPE_CASE	16
+#define PINRESETMSGTYPE_CASE		17
 
 
 //Processing codes for Saving ////////
@@ -183,6 +185,7 @@
 #define CHECK_REFUNDPROCODE								"200020"
 #define CHECK_DEPOSITPROCODE								"210020"		//Agency Bank
 #define CHECK_PINCHANGEPROCODE						"910000"
+#define CHECK_PINRESETPROCODE						"910000"
 #define CHECK_ACTIVATIONPROCODE						"900000"
 #define CHECK_MOBILETOPUPPROCODE					"810000"
 #define CHECK_SETTLEMENTPROCODE           "920000"
@@ -365,6 +368,19 @@
 #define CAN_NOT_DO_TRANSFER				     60
 #define ENTER_OLD_PIN            61
 #define ENTER_NEW_PIN            62
+#define CONFIRM_PIN				 63
+#define PIN_NO_MATCH			 64
+#define ENTER_MASTER_KEYS        65  
+#define KEYS_INJECTED			 66
+#define LOG_CLEARED				 67
+#define LOG_NOT_CLEARED			 68
+#define ENTER_OPERATOR_ID		69
+#define	ENTER_OPERATOR_PASSWORD 70
+#define YOU_NEED_TO_LOG_IN		71
+#define AS_SUPERVISOR_TO_ACCESS_REPORTS 72
+#define NEW_SUPERVISOR_PASSWORD 73
+#define CONFIRM_SUPERVISOR_PASSWORD 74
+#define PIN_INCORRECT_FORMAT 75
 
 
 ///////////////////////////////////////////////////////////
@@ -410,7 +426,7 @@ typedef struct BitmapStruct
 	unsigned char field_53[SECURITY_CONTROL_LEN+1 ]; /*  Security__Control_Information */ //17
 	unsigned char field_54[BAL_INQ_AMT_RES_LEN+1 ];   /*Balance amount for Balance inquiry  */ //121
 	unsigned char field_55[ICC_RELATED_DATA_LEN ];   /* ICC Related data */ //55
-
+	unsigned char field_59[9]; //Operator ID
 	unsigned char field_60[BATCH_ID_LEN+1];   /* Batch no for Settlement and Settlemnet Trailor  */ //7
   
 	unsigned char AmountForVoid[AMOUNT_LEN+1 ];   /* amount for void */ //13
@@ -455,7 +471,7 @@ typedef struct TransactionMessageStruct         // to store data
 																								used to initiate the transaction.*/ //77
   
 	unsigned char PinData[BIANRY_PIN_LEN];															//Cardholder entered PIN in ANSI X9.8 PIN block format //8
-	char NewPinData[BIANRY_PIN_LEN];
+	char NewPinData[16];
 	char PaymentId[PAYMENT_ID_LEN+1];                             //Bit 48 for payment //10
 	char FromAcNo[ACCOUNT_NO_LEN+1];		//Agency Bank
 	char ToAcNo[ACCOUNT_NO_LEN+1];		//Agency Bank
@@ -523,6 +539,7 @@ typedef struct
     short EMV_Flag; 
 		short TransTypeFlg; 
 		short TransMethord_Flag;
+		char operatorID [9];
 		
 }TrDetails;
 typedef struct

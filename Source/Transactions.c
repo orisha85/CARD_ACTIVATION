@@ -29,6 +29,7 @@ extern char Proc_code[PROC_CODE_LEN+1];//7
 extern BmapStruct BitmapStructOb ;
 short BITMAP_LEN=8;
 extern unsigned char KeySessionKeyEncripted[GISKE_KEY_LEN + 1] = {0};//Giske Block specs for session key
+extern int pinmismatch;
 
 /****************************************************************************************************************************
 *	Function Name : getTraceAuditNumber									                                                                      *
@@ -981,7 +982,7 @@ short InitCardActivation(TransactionMsgStruc *transMsg)
 
 	LOG_PRINTF(("transMsg->POSEntryMode=%s ", transMsg->POSEntryMode));
 
-	if (!strcmp(transMsg->POSEntryMode, "051"))
+	if (!strcmp(transMsg->POSEntryMode, "051") || !strcmp(transMsg->POSEntryMode, "021") || !strcmp(transMsg->POSEntryMode, "801"))
 	{
 		if (key_injected == 0)
 		{
@@ -990,9 +991,22 @@ short InitCardActivation(TransactionMsgStruc *transMsg)
 		}
 		else
 		{
-			LOG_PRINTF(("Init:PinPrompt"));
-			iRetVal = PinPrompt(transMsg->PrimaryAccNum);//getting user pin 
+			iRetVal = PinPrompt(transMsg->PrimaryAccNum);//getting new user pin
+			LOG_PRINTF(("iRetval new pin=%d ", iRetVal));
+			iRetVal = PinPrompt(transMsg->PrimaryAccNum);//Confirm new pin
+			LOG_PRINTF(("iRetval new pin=%d ", iRetVal));
 		}
+	}
+
+	if (pinmismatch)
+	{
+		window(1, 1, 30, 20);
+		clrscr();
+		write_at(Dmsg[PIN_NO_MATCH].dispMsg, strlen(Dmsg[PIN_NO_MATCH].dispMsg), Dmsg[PIN_NO_MATCH].x_cor, Dmsg[PIN_NO_MATCH].y_cor);
+		window(Dmsg[PIN_NO_MATCH].x_cor, Dmsg[PIN_NO_MATCH].y_cor + 2, 18, Dmsg[PIN_NO_MATCH].y_cor + 2);
+		SVC_WAIT(3000);
+		pinmismatch = 0;   //reset pinmismatch flag
+		return GoToMainScreen;
 	}
 
 
@@ -1072,7 +1086,7 @@ short InitPinChange(TransactionMsgStruc *transMsg)
 		}
 		strcpy((char *)transMsg->POSEntryMode, MSReICC_PIN_CAPABLE);             //22 POS Entry Mode
 	}
-	if (!strcmp(transMsg->POSEntryMode, "051"))
+	if (!strcmp(transMsg->POSEntryMode, "051") || !strcmp(transMsg->POSEntryMode, "021") || !strcmp(transMsg->POSEntryMode, "801"))
 	{
 		if (key_injected == 0)
 		{
@@ -1087,7 +1101,20 @@ short InitPinChange(TransactionMsgStruc *transMsg)
 			LOG_PRINTF(("iRetval old pin=%d ", iRetVal));
 			iRetVal = PinPrompt(transMsg->PrimaryAccNum);//getting new user pin
 			LOG_PRINTF(("iRetval new pin=%d ", iRetVal));
+			iRetVal = PinPrompt(transMsg->PrimaryAccNum);//Confirm new pin
+			LOG_PRINTF(("iRetval new pin=%d ", iRetVal));
 		}
+	}
+
+	if (pinmismatch)
+	{
+		window(1, 1, 30, 20);
+		clrscr();
+		write_at(Dmsg[PIN_NO_MATCH].dispMsg, strlen(Dmsg[PIN_NO_MATCH].dispMsg), Dmsg[PIN_NO_MATCH].x_cor, Dmsg[PIN_NO_MATCH].y_cor);
+		window(Dmsg[PIN_NO_MATCH].x_cor, Dmsg[PIN_NO_MATCH].y_cor + 2, 18, Dmsg[PIN_NO_MATCH].y_cor + 2);
+		SVC_WAIT(3000);
+		pinmismatch = 0;   //reset pinmismatch flag
+		return GoToMainScreen;
 	}
 	//else
 	//{
@@ -1102,6 +1129,111 @@ short InitPinChange(TransactionMsgStruc *transMsg)
 	if (iRetVal == _SUCCESS)
 	{
 		iRetVal = PinChangeTransactionProcessing(transMsg);
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("ret val = =  %d ", iRetVal));
+		}
+	}
+	else
+	{
+		return GoToMainScreen;
+	}
+
+	if (iRetVal == _SUCCESS)
+	{
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("ret val = =  %d ", iRetVal));
+		}
+		printRecipt(transMsg);
+	}
+
+	return _SUCCESS;
+}
+
+short InitPinReset(TransactionMsgStruc *transMsg)
+{
+	short iRetVal = 0;
+	char terminalId[TERMINAL_ID_LEN + 1] = { 0 };//9
+	char cardAccepterId[CARD_ACCEPTOR_ID_LEN + 1] = { 0 };//16
+
+	LOG_PRINTF(("InitPinReset variables initializad"))
+
+	getTraceAuditNumber(transMsg);  //11 
+	get_env("#TERMINAL_ID", (char*)terminalId, sizeof(terminalId)); //41
+	sprintf(transMsg->TerminalID, "%s", terminalId);
+	get_env("#CARDACCEPTERID", (char*)cardAccepterId, sizeof(cardAccepterId));
+	sprintf(transMsg->CardAcceptorID, "%s", cardAccepterId);  //42
+	sprintf(transMsg->_transType, "%s", "PIN RESET");
+
+	LOG_PRINTF(("PROMPT FOR CARD"));
+	iRetVal = swipeOrEMVCardEntry(transMsg);//Read card data 
+	if ((iRetVal == _FAIL) || (iRetVal == KEY_STR) || (iRetVal == KEY_CANCEL) || (iRetVal == BTN_CANCEL))
+	{
+		return iRetVal;
+	}
+	else if (iRetVal == FORCE_FOR_EMV)
+	{
+		LOG_PRINTF(("InitRefubdTransaction:FORCE_FOR_EMV"));
+		iRetVal = EMVCardEntry(transMsg);//Read card data 
+		if ((iRetVal == (KEY_STR) || (iRetVal == KEY_CANCEL) || (iRetVal == BTN_CANCEL) || (iRetVal == _FAIL)))
+		{
+			return GoToMainScreen;
+		}        //22 POS Entry Mode
+	}
+	if (iRetVal == FALLBACK)
+	{
+		LOG_PRINTF(("Init:FALLBACK"));
+		iRetVal = swipeCardEntry(transMsg);//Read card data 
+		if ((iRetVal == _FAIL) || (iRetVal == KEY_STR) || (iRetVal == KEY_CANCEL) || (iRetVal == BTN_CANCEL))
+		{
+			return iRetVal;
+		}
+		strcpy((char *)transMsg->POSEntryMode, MSReICC_PIN_CAPABLE);             //22 POS Entry Mode
+	}
+	if (!strcmp(transMsg->POSEntryMode, "051") || !strcmp(transMsg->POSEntryMode, "021") || !strcmp(transMsg->POSEntryMode, "801"))
+	{
+		if (key_injected == 0)
+		{
+			iRetVal = KeyInjection(transMsg->PrimaryAccNum);
+			LOG_PRINTF(("iRetval new pin=%d ", iRetVal));
+			//iRetVal = PinPrompt(transMsg->PrimaryAccNum);//getting new user pin
+			//LOG_PRINTF(("iRetval new pin=%d ", iRetVal));
+		}
+		else
+		{
+			//iRetVal = PinPrompt(transMsg->PrimaryAccNum);//getting old user pin
+			//LOG_PRINTF(("iRetval old pin=%d ", iRetVal));
+			iRetVal = PinPrompt(transMsg->PrimaryAccNum);//getting new user pin
+			LOG_PRINTF(("iRetval new pin=%d ", iRetVal));
+			iRetVal = PinPrompt(transMsg->PrimaryAccNum);//Confirm new pin
+			LOG_PRINTF(("iRetval new pin=%d ", iRetVal));
+		}
+	}
+
+	if (pinmismatch)
+	{
+		window(1, 1, 30, 20);
+		clrscr();
+		write_at(Dmsg[PIN_NO_MATCH].dispMsg, strlen(Dmsg[PIN_NO_MATCH].dispMsg), Dmsg[PIN_NO_MATCH].x_cor, Dmsg[PIN_NO_MATCH].y_cor);
+		window(Dmsg[PIN_NO_MATCH].x_cor, Dmsg[PIN_NO_MATCH].y_cor + 2, 18, Dmsg[PIN_NO_MATCH].y_cor + 2);
+		SVC_WAIT(3000);
+		pinmismatch = 0;   //reset pinmismatch flag
+		return GoToMainScreen;
+	}
+	//else
+	//{
+	//	iRetVal = PinPrompt(transMsg->PrimaryAccNum);//getting new user pin
+	//	LOG_PRINTF(("iRetval new pin=%d ", iRetVal));
+	//}
+
+
+	LOG_PRINTF(("pinblock=%s ", transMsg->PinData));
+
+	LOG_PRINTF(("Card read successful, passing to function handle bitmap and host transmission"));
+	if (iRetVal == _SUCCESS)
+	{
+		iRetVal = PinResetTransactionProcessing(transMsg);
 		if (LOG_STATUS == LOG_ENABLE)
 		{
 			LOG_PRINTF(("ret val = =  %d ", iRetVal));
@@ -1347,7 +1479,8 @@ short CardActivationTransactionProcessing(TransactionMsgStruc *transMsg)
 		{ 49 + SKIP, 3, ASC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 50 + SKIP, 3, ASC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 51 + SKIP, 3, ASC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
-		{ 52, 64, BIT_BIT, (void *)BitmapStructOb.field_52, sizeof(BitmapStructOb.field_52) },
+		{ 52 + SKIP, 3, ASC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		//{ 52, 64, BIT_BIT, (void *)BitmapStructOb.field_52, sizeof(BitmapStructOb.field_52) },
 		{ 53 + SKIP, 16, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 54 + SKIP, 120, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		//{ 54, 999, AV3_STR, (void *)BitmapStructOb.field_54, sizeof(BitmapStructOb.field_54) },
@@ -1355,11 +1488,13 @@ short CardActivationTransactionProcessing(TransactionMsgStruc *transMsg)
 		{ 56 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 57 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 58 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
-		{ 59 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		//{ 59 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 59, 8, ASC_STR, (void *)BitmapStructOb.field_59, sizeof(BitmapStructOb.field_59) },
 		{ 60 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 61 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 62 + SKIP, 999, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
-		{ 63 + SKIP, 999, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 63, 24, AV3_STR, (void *)BitmapStructOb.field_52, sizeof(BitmapStructOb.field_52) },
+		//{ 63 + SKIP, 999, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 64 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 65 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 66 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
@@ -1497,6 +1632,7 @@ short CardActivationTransactionProcessing(TransactionMsgStruc *transMsg)
 			clrscr();*/
 			write_at(Dmsg[INVALID_PIN_INDX].dispMsg, strlen(Dmsg[INVALID_PIN_INDX].dispMsg), Dmsg[INVALID_PIN_INDX].x_cor, Dmsg[INVALID_PIN_INDX].y_cor);//invalid pin
 			strcpy(transMsg->ResponseText, "INVALID PIN");
+			SaveTransDetails(transMsg);
 			SVC_WAIT(2000);
 			ClearKbdBuff();
 			KBD_FLUSH();
@@ -1507,6 +1643,7 @@ short CardActivationTransactionProcessing(TransactionMsgStruc *transMsg)
 			clrscr();*/
 			write_at(Dmsg[INVALID_PIN_INDX].dispMsg, strlen(Dmsg[INSUFFICIENT_FUND].dispMsg), Dmsg[INSUFFICIENT_FUND].x_cor, Dmsg[INSUFFICIENT_FUND].y_cor);//INSUFFICIENT_FUNDS
 			strcpy(transMsg->ResponseText, "INSUFFICIENT_FUNDS");
+			SaveTransDetails(transMsg);
 			SVC_WAIT(2000);
 			ClearKbdBuff();
 			KBD_FLUSH();
@@ -1524,6 +1661,7 @@ short CardActivationTransactionProcessing(TransactionMsgStruc *transMsg)
 			KBD_FLUSH();
 
 			strcpy(transMsg->ResponseText, "DECLINE");
+			SaveTransDetails(transMsg);
 			if (LOG_STATUS == LOG_ENABLE)
 			{
 				LOG_PRINTF(("Refund Transaction Fail reason : %s \n", BitmapStructOb.field_39));
@@ -1653,11 +1791,12 @@ short PinChangeTransactionProcessing(TransactionMsgStruc *transMsg)
 		{ 56 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 57 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 58 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
-		{ 59 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		//{ 59 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 59, 8, ASC_STR, (void *)BitmapStructOb.field_59, sizeof(BitmapStructOb.field_59) },
 		{ 60 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 61 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 62 + SKIP, 999, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
-		{ 63, 96, BIT_BIT, (void *)BitmapStructOb.field_63, sizeof(BitmapStructOb.field_63) },
+		{ 63, 24, AV3_STR, (void *)BitmapStructOb.field_63, sizeof(BitmapStructOb.field_63) },
 		//{ 63 + SKIP, 999, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 64 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
 		{ 65 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
@@ -1793,6 +1932,7 @@ short PinChangeTransactionProcessing(TransactionMsgStruc *transMsg)
 			clrscr();*/
 			write_at(Dmsg[INVALID_PIN_INDX].dispMsg, strlen(Dmsg[INVALID_PIN_INDX].dispMsg), Dmsg[INVALID_PIN_INDX].x_cor, Dmsg[INVALID_PIN_INDX].y_cor);//invalid pin
 			strcpy(transMsg->ResponseText, "INVALID PIN");
+			SaveTransDetails(transMsg);
 			SVC_WAIT(2000);
 			ClearKbdBuff();
 			KBD_FLUSH();
@@ -1803,6 +1943,7 @@ short PinChangeTransactionProcessing(TransactionMsgStruc *transMsg)
 			clrscr();*/
 			write_at(Dmsg[INVALID_PIN_INDX].dispMsg, strlen(Dmsg[INSUFFICIENT_FUND].dispMsg), Dmsg[INSUFFICIENT_FUND].x_cor, Dmsg[INSUFFICIENT_FUND].y_cor);//INSUFFICIENT_FUNDS
 			strcpy(transMsg->ResponseText, "INSUFFICIENT_FUNDS");
+			SaveTransDetails(transMsg);
 			SVC_WAIT(2000);
 			ClearKbdBuff();
 			KBD_FLUSH();
@@ -1820,6 +1961,7 @@ short PinChangeTransactionProcessing(TransactionMsgStruc *transMsg)
 			KBD_FLUSH();
 
 			strcpy(transMsg->ResponseText, "DECLINE");
+			SaveTransDetails(transMsg);
 			if (LOG_STATUS == LOG_ENABLE)
 			{
 				LOG_PRINTF(("Refund Transaction Fail reason : %s \n", BitmapStructOb.field_39));
@@ -1855,6 +1997,300 @@ short PinChangeTransactionProcessing(TransactionMsgStruc *transMsg)
 	return _FAIL;
 }
 
+
+short PinResetTransactionProcessing(TransactionMsgStruc *transMsg)
+{
+	short retVal = -1;
+	int i = 0;
+	char Bitmap[BITMAP_ARRAY_SIZE + 1] = { 0 }; //8
+	char UnpackBiitmap[UNPACK_BITMAP_ARRAY_SIZE + 1] = { 0 };//16
+	char bits[BITMAP_SIZE + 1] = { 0 };//64
+	char temp[BITMAP_ARRAY_SIZE + 1] = { 0 };//9
+
+#ifndef EMV_ENABLE
+	unsigned char reqBuff[REFUND_REQUEST_SIZE] = { 0 };//96
+#else
+	unsigned char reqBuff[REFUND_REQUEST_SIZE + ICC_RELATED_DATA_LEN + 2] = { 0 };//96+151+2
+#endif 
+
+	unsigned char resBuff[REFUND_RESPONSE_SIZE] = { 0 };//100 to 200 after e2e encryprion
+	unsigned char testBuff[REFUND_UNAPACK_RES_SIZE] = { 0 };//200 to 400 after e2e encryprion
+	short ReqLen = 0;
+	short recvLength = 0;
+
+	field_struct iso8583_field_table[] =
+	{
+		/*Fld 8583 Convert Variable name and size no.	sz 	index *//*BCD_BCD,BCD_STR*/ //ASC_ASC->
+		{ 0, TPDU_LEN,BCD_STR,(void *)(BitmapStructOb.tpdu), sizeof(BitmapStructOb.tpdu) },
+		{ 0, MSG_ID_LEN, BCD_ASC, (void *)BitmapStructOb.message_id, sizeof(BitmapStructOb.message_id) },
+		{ 2 + SKIP, 19, ASC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 3, 6, BCD_STR, (void *)BitmapStructOb.field_03, sizeof(BitmapStructOb.field_03) },
+		{ 4 + SKIP, 12, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 5 + SKIP, 12, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 6 + SKIP, 12, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 7 + SKIP, 10, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 8 + SKIP, 8, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 9 + SKIP, 8, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 10 + SKIP, 8, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 11, 6, BCD_STR, (void *)BitmapStructOb.field_11, sizeof(BitmapStructOb.field_11) },
+		{ 12 + SKIP, 8, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 13 + SKIP, 8, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 14 + SKIP, 4, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 15 + SKIP, 4, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 16 + SKIP, 4, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 17 + SKIP, 4, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 18 + SKIP, 4, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 19 + SKIP, 3, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 20 + SKIP, 3, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 21 + SKIP, 3, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 22, 3, BCD_STR, (void *)BitmapStructOb.field_22, sizeof(BitmapStructOb.field_22) },
+		{ 23 + SKIP, 3, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 24, 3, BCD_STR, (void *)BitmapStructOb.field_24, sizeof(BitmapStructOb.field_24) },
+		{ 25, 2, BCD_STR, (void *)BitmapStructOb.field_25, sizeof(BitmapStructOb.field_25) },
+		{ 26 + SKIP, 2, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 27 + SKIP, 1, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 28 + SKIP, 8, XBC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 29 + SKIP, 8, XBC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 30 + SKIP, 8, XBC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 31 + SKIP, 8, XBC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 32 + SKIP, 11, BV2_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 33 + SKIP, 11, BV2_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 34 + SKIP, 28, AV2_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 35, 37, BV2_STR, (void *)BitmapStructOb.field_35, sizeof(BitmapStructOb.field_35) },
+		{ 36 + SKIP, 104, AV2_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 37 + SKIP, 104, AV2_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 38 + SKIP, 104, AV2_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 39 + SKIP, 104, AV2_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		//{ 37, 12, BCD_STR, (void *)BitmapStructOb.field_37, sizeof(BitmapStructOb.field_37) },
+		//{ 38, 6, BCD_STR, (void *)BitmapStructOb.field_38, sizeof(BitmapStructOb.field_38) },
+		//{ 39, 2, BCD_STR, (void *)BitmapStructOb.field_39, sizeof(BitmapStructOb.field_39) },
+		{ 40 + SKIP, 3, ASC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 41, 8, ASC_STR, (void *)BitmapStructOb.field_41, sizeof(BitmapStructOb.field_41) },
+		{ 42, 15, ASC_STR, (void *)BitmapStructOb.field_42, sizeof(BitmapStructOb.field_42) },
+		{ 43 + SKIP, 40, ASC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 44 + SKIP, 25, AV2_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 45 + SKIP, 76, AV2_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 46 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 47 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 48 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 49 + SKIP, 3, ASC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 50 + SKIP, 3, ASC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 51 + SKIP, 3, ASC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 52 + SKIP, 3, ASC_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		//{ 52, 64, BIT_BIT, (void *)BitmapStructOb.field_52, sizeof(BitmapStructOb.field_52) },
+		{ 53 + SKIP, 16, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 54 + SKIP, 120, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		//{ 54, 999, AV3_STR, (void *)BitmapStructOb.field_54, sizeof(BitmapStructOb.field_54) },
+		{ 55 + SKIP,  0, BIT_BIT, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 56 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 57 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 58 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		//{ 59 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 59, 8, ASC_STR, (void *)BitmapStructOb.field_59, sizeof(BitmapStructOb.field_59) },
+		{ 60 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 61 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 62 + SKIP, 999, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		//{ 63, 24, AV3_STR, (void *)BitmapStructOb.field_63, sizeof(BitmapStructOb.field_63) },
+		{ 63, 24, AV3_STR, (void *)BitmapStructOb.field_52, sizeof(BitmapStructOb.field_52) },
+		//{ 63 + SKIP, 999, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 64 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 65 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 66 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 67 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 68 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 69 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 70 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 71 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 72 + SKIP, 999, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 73 + SKIP, 999, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 74 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 75 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 76 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 77 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 78 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 79 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 80 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 81 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 82 + SKIP, 999, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 83 + SKIP, 999, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 84 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 85 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 86 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 87 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 88 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 89 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 90 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 91 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 92 + SKIP, 999, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 93 + SKIP, 999, BCD_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 94 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 95 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 96 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 97 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 98 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 99 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 100 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 101 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 102 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 103 + SKIP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+		{ 104 + SKIP + STOP, 999, AV3_STR, (void *)BitmapStructOb.discard, sizeof(BitmapStructOb.discard) },
+	};
+	strcpy(msg_id, PINRESETMSGTYPE);
+	strcpy(Proc_code, CHECK_PINRESETPROCODE);
+
+	strcpy(transMsg->ProcessingCode, Proc_code);
+	strcpy(transMsg->MessageTypeInd, PINRESETMSGTYPE);
+	BITMAP_LEN = 8;
+	//memset(&BitmapStructOb, 0, sizeof(BmapStruct));
+	resetBitmapStructure(&BitmapStructOb);//memsetting all the elements of structure
+
+	ProcessingISOBitmapEngine(iso8583_field_table, transMsg);
+	ReqLen = retVal = assemble_packet(iso8583_field_table, reqBuff);
+
+
+
+	if (retVal <= _SUCCESS)
+	{
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Error Occurred in assemble_packet retVal = %d \n", retVal));
+		}
+		return retVal;
+	}
+
+	recvLength = DEFAULT_BUFLEN;
+	retVal = CommWithServer((char*)reqBuff, ReqLen, (char*)resBuff, &recvLength);
+	//retVal = _FAIL ;
+	if (retVal == _SUCCESS)//checking for response buffer size 
+	{
+		bcd2a((char *)testBuff, (char *)resBuff, recvLength);
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Testbuffin disassemblePacket retVal = %s \n", testBuff));
+			LOG_PRINTF(("Testbuffin Bitmap 1 = %c \n", testBuff[18]));
+		}
+		if (testBuff[18] >= '8')
+			BITMAP_LEN = 16;
+		//strncpy(UnpackBiitmap,(char*)testBuff+UNPACK_SIZE_MSGLEN_OF_REQ_RES+TPDU_LEN+MSG_ID_LEN,UNPACK_BITMAP_ARRAY_SIZE);
+		strncpy(UnpackBiitmap, (char*)testBuff + UNPACK_SIZE_MSGLEN_OF_REQ_RES + TPDU_LEN + MSG_ID_LEN, BITMAP_LEN * 2);
+
+		LOG_PRINTF(("UnpackBiitmap = %s", UnpackBiitmap));
+
+		packData(UnpackBiitmap, Bitmap);
+		//for(i=0;i<BITMAP_ARRAY_SIZE;i++)
+		for (i = 0;i < BITMAP_LEN;i++)
+		{
+			CopyAllBits(Bitmap + i, temp);
+			strcpy(bits + (i * 8), temp);
+		}
+		//memset(&BitmapStructOb,0,sizeof(BitmapStructOb));
+		resetBitmapStructure(&BitmapStructOb);//memsetting all the elements of structure
+		ParseAndFillBitFields((char*)testBuff, bits);
+
+		//------------------------------------------------------------
+		strcpy((char *)transMsg->TransLocalTime, (char*)BitmapStructOb.field_12);
+		strcpy((char *)transMsg->TransLocalDate, (char*)BitmapStructOb.field_13);
+		strcpy((char *)transMsg->ResponseCode, (char*)BitmapStructOb.field_39);             //copy the response code
+		strcpy((char *)transMsg->AuthIdResponse, (char*)BitmapStructOb.field_38);           //copy AuthIdResponse
+		strcpy((char *)transMsg->RetrievalReferenceNo, (char*)BitmapStructOb.field_37);     //copy RetrievalReferenceNo
+
+		window(1, 1, 30, 20);
+		clrscr();
+		if (transMsg->EMV_Flag == 1)
+		{
+			display_TVR_TSI(transMsg);
+		}
+		if (!strcmp((char *)BitmapStructOb.field_39, "00"))
+		{
+			/*  window(1,1,30,20);
+			clrscr();*/
+			strcpy(transMsg->ResponseText, APPROVED_MSG);
+			strcpy(transMsg->FromAcNo, (char *)BitmapStructOb.field_102);
+			strcpy(transMsg->ToAcNo, (char *)BitmapStructOb.field_103);
+			LOG_PRINTF(("From Account = %s", transMsg->FromAcNo));
+			LOG_PRINTF(("TO Account = %s", transMsg->ToAcNo));
+
+			SaveTransDetails(transMsg);
+
+			write_at(Dmsg[TRANSACTION_SUCCESSFULL].dispMsg, strlen(Dmsg[TRANSACTION_SUCCESSFULL].dispMsg), Dmsg[TRANSACTION_SUCCESSFULL].x_cor, Dmsg[TRANSACTION_SUCCESSFULL].y_cor);
+			SVC_WAIT(2000);
+			ClearKbdBuff();
+			KBD_FLUSH();
+			if (LOG_STATUS == LOG_ENABLE)
+			{
+				LOG_PRINTF(("Refund/Deposit successfull !!\n"));
+			}
+		}
+		else if (!strcmp((char *)BitmapStructOb.field_39, "55"))
+		{
+			/*	window(1,1,30,20);
+			clrscr();*/
+			write_at(Dmsg[INVALID_PIN_INDX].dispMsg, strlen(Dmsg[INVALID_PIN_INDX].dispMsg), Dmsg[INVALID_PIN_INDX].x_cor, Dmsg[INVALID_PIN_INDX].y_cor);//invalid pin
+			strcpy(transMsg->ResponseText, "INVALID PIN");
+			SaveTransDetails(transMsg);
+			SVC_WAIT(2000);
+			ClearKbdBuff();
+			KBD_FLUSH();
+		}
+		else if (!strcmp((char *)BitmapStructOb.field_39, "51"))
+		{
+			/*	window(1,1,30,20);
+			clrscr();*/
+			write_at(Dmsg[INVALID_PIN_INDX].dispMsg, strlen(Dmsg[INSUFFICIENT_FUND].dispMsg), Dmsg[INSUFFICIENT_FUND].x_cor, Dmsg[INSUFFICIENT_FUND].y_cor);//INSUFFICIENT_FUNDS
+			strcpy(transMsg->ResponseText, "INSUFFICIENT_FUNDS");
+			SaveTransDetails(transMsg);
+			SVC_WAIT(2000);
+			ClearKbdBuff();
+			KBD_FLUSH();
+
+		}
+		else
+		{
+			/*window(1,1,30,20);
+			clrscr();
+			*/
+			write_at(Dmsg[TRANSACTION_FAILED].dispMsg, strlen(Dmsg[TRANSACTION_FAILED].dispMsg), Dmsg[TRANSACTION_FAILED].x_cor, Dmsg[TRANSACTION_FAILED].y_cor);
+
+			SVC_WAIT(1000);
+			ClearKbdBuff();
+			KBD_FLUSH();
+
+			strcpy(transMsg->ResponseText, "DECLINE");
+			SaveTransDetails(transMsg);
+			if (LOG_STATUS == LOG_ENABLE)
+			{
+				LOG_PRINTF(("Transaction Fail reason : %s \n", BitmapStructOb.field_39));
+			}
+		}
+		/*if(transMsg->EMV_Flag == 1 )
+		{
+		display_TVR_TSI(transMsg);
+		}*/
+		return _SUCCESS;
+	}
+	/*else
+	{
+		if (retVal == RECV_FAILED)//if did not receive a valid response before the transaction time-out period expired
+		{
+			if (SaveReversalDetails(transMsg) == _SUCCESS)//saves reversal data
+			{
+				retVal = InitReversal();//go for reversal
+				if (LOG_STATUS == LOG_ENABLE)
+				{
+					LOG_PRINTF(("reversal retVal =%d", retVal));
+				}
+			}
+		}
+		else
+		{
+			if (LOG_STATUS == LOG_ENABLE)
+			{
+				LOG_PRINTF(("Response buffer size is zero for Refund\n"));
+			}
+		}
+	}*/
+	return _FAIL;
+}
 
 /****************************************************************************************************************
 *	Function Name : RefundTransactionProcessing																											                    *

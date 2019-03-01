@@ -78,7 +78,9 @@ char szKeyMap[MAX_ALPNUM_KEYS][CHAR_PER_KEY]= {"0- +%", "1QZ.\\","2ABC&", "3DEF%
 char LOGFlag[2]={0};
 // Global Variables for the Application
 int CheckPaperFlag = 0 ;
-short Sup_Login = 1;
+short Sup_Login = 0;
+short operator_login = 0;
+char loggedinOper[9] = {0};
 short pin_change = 0;
 extern unsigned char EncSessionKey[UNPACK_ENC_PR_KEY_LEN+1];//33 
 char            LogicalName[EESL_APP_LOGICAL_NAME_SIZE];    // To store the logical name of this Appl
@@ -944,6 +946,8 @@ int mainMenu(TransactionMsgStruc *ptrTransMsgDetails)
 {
 	short Selectionstatus = SelectEvent;
 	short iRetVal = 0;
+	//unsigned long timeout;
+	//unsigned long time; int clock;
 	
 	short mainFlag = GoToMainScreen;
   //char ch =0 ;
@@ -1076,7 +1080,10 @@ int mainMenu(TransactionMsgStruc *ptrTransMsgDetails)
 
 		if (Selectionstatus == SelectEvent)
 		{
+			//clock = open("/dev/console", 0);
+			//int timer = set_timer(30000, EVT_TIMER);
 			Selectionstatus =  get_char();
+			//time = set_itimeout(clock, 10, TM_SECONDS);
 		}
 		if(Selectionstatus == KEY_STR) //if * key pressed
 			return KEY_STR;
@@ -1085,18 +1092,44 @@ int mainMenu(TransactionMsgStruc *ptrTransMsgDetails)
 			Selectionstatus = SelectEvent ;
 			mainFlag = GoToMainScreen ;
 		}
-		LOG_PRINTF(("Selection Status %d",Selectionstatus));
+		LOG_PRINTF(("Selection Status %d",Selectionstatus));	
 		AC_TYPE='F';
+
+		//if (TM_EXPIRED == CHK_TIMEOUT(clock, time))
+			//Selectionstatus = eLogout;
+
+		//timeout = 5000;
+		//if (read_ticks() > timeout)
+		//{
+		//	LOG_PRINTF(("Timeout"));
+		//	Selectionstatus = eLogout;
+		//}
+
 		switch(Selectionstatus)
 		{
 			case eTransaction: //transaction touch		
 				clrscr();
 				ptrTransMsgDetails->TrMethordFlag = -1;
+				//if ((Sup_Login == 0) && (operator_login == 0))
+				if ((operator_login == 0))
+				{
+					window(1, 1, 30, 20);
+					clrscr();
+					//write_at("MERCHANT",8,13,8);
+					write_at(Dmsg[YOU_NEED_TO_LOG_IN].dispMsg, strlen(Dmsg[YOU_NEED_TO_LOG_IN].dispMsg), Dmsg[YOU_NEED_TO_LOG_IN].x_cor, Dmsg[YOU_NEED_TO_LOG_IN].y_cor);//LOGON SUCCESSFULL
+					write_at("AS OPERATOR", 11, 11, 11);
+
+					SVC_WAIT(1000);
+					ClearKbdBuff();
+					KBD_FLUSH();
+					mainFlag = GoToMainScreen;
+					break;
+				}
                 if(!strcmp((char *)EncSessionKey,"")) 
                 {
                      window(1,1,30,20);
                      clrscr();
-		             write_at("MERCHANT",8,13,8);
+		             //write_at("MERCHANT",8,13,8);
 					 write_at(Dmsg[PLEASE_LOGON_FIRST].dispMsg, strlen(Dmsg[PLEASE_LOGON_FIRST].dispMsg),Dmsg[PLEASE_LOGON_FIRST].x_cor, Dmsg[PLEASE_LOGON_FIRST].y_cor);//LOGON SUCCESSFULL
      
                      SVC_WAIT(1000);
@@ -1105,19 +1138,32 @@ int mainMenu(TransactionMsgStruc *ptrTransMsgDetails)
                      mainFlag = GoToMainScreen;
                      break ;
 				}
-				LOG_PRINTF(("SUP_CARD = %d " ,SUP_CARD));
-				if(Sup_Login==0)
+				if (key_injected == 0)
 				{
-					window(1,1,30,20);
-                    clrscr();
-					write_at("SUPERVISOR NOT LOGGED IN",24,3,10);//LOGON SUCCESSFULL
-		             //write_at(Dmsg[PLEASE_LOGON_FIRST].dispMsg, strlen(Dmsg[PLEASE_LOGON_FIRST].dispMsg),Dmsg[PLEASE_LOGON_FIRST].x_cor, Dmsg[PLEASE_LOGON_FIRST].y_cor);//LOGON SUCCESSFULL
-                    SVC_WAIT(1000);
-                    ClearKbdBuff();
+					window(1, 1, 30, 20);
+					clrscr();
+					//write_at("MERCHANT", 8, 13, 8);
+					write_at(Dmsg[ENTER_MASTER_KEYS].dispMsg, strlen(Dmsg[ENTER_MASTER_KEYS].dispMsg), Dmsg[ENTER_MASTER_KEYS].x_cor, Dmsg[ENTER_MASTER_KEYS].y_cor);//LOGON SUCCESSFULL
+
+					SVC_WAIT(3000);
+					ClearKbdBuff();
 					KBD_FLUSH();
-                    mainFlag = GoToMainScreen;
-                    break ;
+					mainFlag = GoToMainScreen;
+					break;
 				}
+				//LOG_PRINTF(("SUP_CARD = %d " ,SUP_CARD));
+				//if(Sup_Login == 0 && operator_login == 0 )
+				//{
+				//	window(1,1,30,20);
+                //    clrscr();
+				//	write_at("NOT LOGGED IN",24,3,10);//LOGON SUCCESSFULL
+		             //write_at(Dmsg[PLEASE_LOGON_FIRST].dispMsg, strlen(Dmsg[PLEASE_LOGON_FIRST].dispMsg),Dmsg[PLEASE_LOGON_FIRST].x_cor, Dmsg[PLEASE_LOGON_FIRST].y_cor);//LOGON SUCCESSFULL
+                //    SVC_WAIT(1000);
+                //   ClearKbdBuff();
+				//	KBD_FLUSH();
+                //    mainFlag = GoToMainScreen;
+                //    break ;
+				//}
                 LOG_PRINTF(("swipeCardFlag:     %d " ,swipeCardFlag));
                 if(swipeCardFlag == 0 && CheckPaperFlag == 0)
 				{
@@ -1421,6 +1467,22 @@ int mainMenu(TransactionMsgStruc *ptrTransMsgDetails)
 						}
 						Selectionstatus = eTransaction;
 						break;
+
+				case  eUserMgntBack:		//back button on screen
+					if (LOG_STATUS == LOG_ENABLE)
+					{
+						LOG_PRINTF(("Back from Transaction Type -------"));
+					}
+					Selectionstatus = eSuperviser;
+					break;
+
+				case  eUserMgnt2Back:		//back button on screen
+					if (LOG_STATUS == LOG_ENABLE)
+					{
+						LOG_PRINTF(("Back from Transaction Type -------"));
+					}
+					Selectionstatus = eUserMgntBack;
+					break;
 				case  eTrTypeNext:		//back button on screen
 						clrscr();
 						SetImage(TransType1_BMP);//display transaction type 1 (void) screen for debit transaction
@@ -1574,6 +1636,31 @@ int mainMenu(TransactionMsgStruc *ptrTransMsgDetails)
 						}
 						Selectionstatus = SelectEvent;
 						break;
+
+				case  eReports:	//merchant menu
+					if (Sup_Login)
+					{
+						SetImage(MERCHANT_MENU_BMP);
+						EnblTouchScreen(MerchentMenu1);
+						if (LOG_STATUS == LOG_ENABLE)
+						{
+							LOG_PRINTF(("eReports ---"));
+						}
+						Selectionstatus = SelectEvent;
+						break;
+					}
+					else
+					{
+						window(1, 1, 30, 20);
+						clrscr();
+						write_at(Dmsg[YOU_NEED_TO_LOG_IN].dispMsg, strlen(Dmsg[YOU_NEED_TO_LOG_IN].dispMsg), Dmsg[YOU_NEED_TO_LOG_IN].x_cor, Dmsg[YOU_NEED_TO_LOG_IN].y_cor);
+						write_at(Dmsg[AS_SUPERVISOR_TO_ACCESS_REPORTS].dispMsg, strlen(Dmsg[AS_SUPERVISOR_TO_ACCESS_REPORTS].dispMsg), Dmsg[AS_SUPERVISOR_TO_ACCESS_REPORTS].x_cor, Dmsg[AS_SUPERVISOR_TO_ACCESS_REPORTS].y_cor);
+						SVC_WAIT(2000);
+						ClearKbdBuff();
+						KBD_FLUSH();
+						mainFlag = GoToMainScreen;
+						break;
+					}
 				case  eLogOn:		//logon function
 						clrscr();
 						if(LOG_STATUS == LOG_ENABLE)
@@ -1587,11 +1674,11 @@ int mainMenu(TransactionMsgStruc *ptrTransMsgDetails)
 						clrscr();
 						iRetVal  = InitReversal();//check reversal data and if any go for reversal
 						if(iRetVal == _SUCCESS)
-						{
-							ptrTransMsgDetails->TrTypeFlag = SETTLEMENT_MSG_TYPE_CASE;   
-							InitSettlement(ptrTransMsgDetails); //send request for settlement of each and every transaction.
-						}
-						else
+						//{
+						//	ptrTransMsgDetails->TrTypeFlag = SETTLEMENT_MSG_TYPE_CASE;   
+						//	InitSettlement(ptrTransMsgDetails); //send request for settlement of each and every transaction.
+						//}
+						//else
 						{
 							window(1,1,30,20);
 							clrscr();
@@ -1605,6 +1692,7 @@ int mainMenu(TransactionMsgStruc *ptrTransMsgDetails)
 			            }
 						mainFlag = GoToMainScreen;
 						break;
+
 				case  ecopy:		
 						clrscr();
 						if(LOG_STATUS == LOG_ENABLE)
@@ -1614,15 +1702,36 @@ int mainMenu(TransactionMsgStruc *ptrTransMsgDetails)
 						iRetVal = printAnotherCopy(ptrTransMsgDetails);//print another copy
 						mainFlag = GoToMainScreen;
 						break;
+
+				case eClearLogs:
+						clrscr();
+						if (LOG_STATUS == LOG_ENABLE)
+						{
+							LOG_PRINTF(("Clear Logs function -------"));
+						}
+
+						iRetVal = ClearLogs();
+						mainFlag = GoToMainScreen;
+						break;
 				case  eTotalReport:		
 						clrscr();
 						if(LOG_STATUS == LOG_ENABLE)
 						{
 							LOG_PRINTF(("TotalReport function -------"));
 						}
-						iRetVal =  TotalReportReciept("SUB TOTAL");
+						iRetVal =  TotalReportReciept("SUMMARY REPORT");
 						mainFlag = GoToMainScreen;
 						break;
+
+				case  eUserAudit:
+					clrscr();
+					if (LOG_STATUS == LOG_ENABLE)
+					{
+						LOG_PRINTF(("User Audit Report function -------"));
+					}
+					iRetVal = printUserAudit();
+					mainFlag = GoToMainScreen;
+					break;
 				case  eMerchant1Back:		
 						clrscr();
 						if(LOG_STATUS == LOG_ENABLE)
@@ -1670,15 +1779,172 @@ int mainMenu(TransactionMsgStruc *ptrTransMsgDetails)
 						}
 						Selectionstatus = eMerchent;
 						break;
-				case  eSuperviser:		
+				case  eOperator:
+					if (!Sup_Login)
+					{
+						write_at("Supervisor needs to log in", strlen("Supervisor needs to log in"), 1, 10);
+						mainFlag = GoToMainScreen;
+						SVC_WAIT(4000);
+						break;
+					}
+					if (operator_login)
+					{
+						SetImage(operator_BMP);
+						EnblTouchScreen(operator);
+						if (LOG_STATUS == LOG_ENABLE)
+						{
+							LOG_PRINTF(("eOperator -------"));
+						}
+						Selectionstatus = SelectEvent;
+					}
+					else
+					{
+						iRetVal = validateOperatorPassword();
+						if (iRetVal == _SUCCESS)
+						{
+							SetImage(operator_BMP);
+							EnblTouchScreen(operator);
+							if (LOG_STATUS == LOG_ENABLE)
+							{
+								LOG_PRINTF(("eOperator -------"));
+							}
+							Selectionstatus = SelectEvent;
+							operator_login = 1;
+							Sup_Login = 0;
+						}
+						else 
+							mainFlag = GoToMainScreen;
+					}
+					break;
+
+				case  eSuperviser:	
+
+					if (Sup_Login == 1)
+					{
 						SetImage(Super_MENU_BMP);
 						EnblTouchScreen(SupervisorMenu1);
-						if(LOG_STATUS == LOG_ENABLE)
+						if (LOG_STATUS == LOG_ENABLE)
 						{
 							LOG_PRINTF(("eSuperviser -------"));
 						}
 						Selectionstatus = SelectEvent;
+					}
+					else if (validateSupervisorPassword() == _SUCCESS)
+					{
+						Sup_Login = 1;
+						operator_login = 0;
+						SetImage(Super_MENU_BMP);
+						EnblTouchScreen(SupervisorMenu1);
+						if (LOG_STATUS == LOG_ENABLE)
+						{
+							LOG_PRINTF(("eSuperviser -------"));
+						}
+						Selectionstatus = SelectEvent;
+					}
+					else 
+						mainFlag = GoToMainScreen;
+					break;
+
+				case  eUserMgnt:
+
+					/*if (!strcmp((char *)EncSessionKey, ""))
+					{
+						window(1, 1, 30, 20);
+						clrscr();
+						//write_at("MERCHANT",8,13,8);
+						write_at(Dmsg[PLEASE_LOGON_FIRST].dispMsg, strlen(Dmsg[PLEASE_LOGON_FIRST].dispMsg), Dmsg[PLEASE_LOGON_FIRST].x_cor, Dmsg[PLEASE_LOGON_FIRST].y_cor);//LOGON SUCCESSFULL
+
+						SVC_WAIT(1000);
+						ClearKbdBuff();
+						KBD_FLUSH();
+						mainFlag = GoToMainScreen;
 						break;
+					}
+
+					if (key_injected == 0)
+					{
+						window(1, 1, 30, 20);
+						clrscr();
+						//write_at("MERCHANT", 8, 13, 8);
+						write_at(Dmsg[ENTER_MASTER_KEYS].dispMsg, strlen(Dmsg[ENTER_MASTER_KEYS].dispMsg), Dmsg[ENTER_MASTER_KEYS].x_cor, Dmsg[ENTER_MASTER_KEYS].y_cor);//LOGON SUCCESSFULL
+
+						SVC_WAIT(3000);
+						ClearKbdBuff();
+						KBD_FLUSH();
+						mainFlag = GoToMainScreen;
+						break;
+					}*/
+
+					SetImage(UserMgnt_BMP);
+					EnblTouchScreen(UserMgnt);
+					if (LOG_STATUS == LOG_ENABLE)
+					{
+						LOG_PRINTF(("eUserMgnt -------"));
+					}
+					Selectionstatus = SelectEvent;
+					break;
+
+				case  eResetPassword:
+					SetImage(UserMgnt2_BMP);
+					EnblTouchScreen(UserMgnt3);
+					if (LOG_STATUS == LOG_ENABLE)
+					{
+						LOG_PRINTF(("eResetPassword -------"));
+					}
+					Selectionstatus = SelectEvent;
+					break;
+
+				case  eChangePassword:
+					//SetImage(UserMgnt2_BMP);
+					//EnblTouchScreen(UserMgnt2);
+					if (LOG_STATUS == LOG_ENABLE)
+					{
+						LOG_PRINTF(("eChangePassword -------"));
+					}
+					ChangeOperatorPassword();
+					Selectionstatus = eUserMgnt;
+					break;
+
+				case  eOperatorChangePwd:
+					if (LOG_STATUS == LOG_ENABLE)
+					{
+						LOG_PRINTF(("eOperatorChangePwd -------"));
+					}
+					ChangeOperatorPassword();
+
+					Selectionstatus = eUserMgnt;
+					break;
+
+				case  eSupervisorChangePwd:
+					if (LOG_STATUS == LOG_ENABLE)
+					{
+						LOG_PRINTF(("eOperatorChangePwd -------"));
+					}
+					ChangeSupervisorPassword();
+
+					Selectionstatus = SelectEvent;
+					break;
+
+				case  eOperatorResetPwd:
+					if (LOG_STATUS == LOG_ENABLE)
+					{
+						LOG_PRINTF(("eOperatorChangePwd -------"));
+					}
+					ResetOperatorPassword();
+
+					Selectionstatus = eUserMgnt;
+					break;
+
+				case  eSupervisorResetPwd:
+					if (LOG_STATUS == LOG_ENABLE)
+					{
+						LOG_PRINTF(("eOperatorChangePwd -------"));
+					}
+					ResetSupervisorPassword();
+
+					Selectionstatus = eUserMgnt;
+					break;
+
 				case  ePassword:		
 						clrscr();
 						iRetVal = changePassword();//change password
@@ -1688,6 +1954,36 @@ int mainMenu(TransactionMsgStruc *ptrTransMsgDetails)
 						}
 						mainFlag = GoToMainScreen;
 						break;
+				case  eAddOperator:
+					clrscr();
+					iRetVal = AddOperator();//AddOperator
+					if (LOG_STATUS == LOG_ENABLE)
+					{
+						LOG_PRINTF(("AddOperator function -------"));
+					}
+					Selectionstatus = eUserMgnt;
+					break;
+
+				case  eDeleteOperator:
+					clrscr();
+					iRetVal = DeleteOperator();//change password
+					if (LOG_STATUS == LOG_ENABLE)
+					{
+						LOG_PRINTF(("AddOperator function -------"));
+					}
+					Selectionstatus = eUserMgnt;
+					break;
+
+				case  eListOperator:
+					clrscr();
+					iRetVal = ListOperators();//change password
+					if (LOG_STATUS == LOG_ENABLE)
+					{
+						LOG_PRINTF(("AddOperator function -------"));
+					}
+					Selectionstatus = eUserMgnt;
+					break;
+
 				case  econfiguration:										
 						Selectionstatus = dldConfiguration();
 						if(Selectionstatus == KEY_STR)
@@ -1732,7 +2028,8 @@ int mainMenu(TransactionMsgStruc *ptrTransMsgDetails)
 							LOG_PRINTF(("Supervisor LOGOUT -------"));
 						}
 						Sup_Login=0;
-						write_at("SUPERVISOR LOGING OUT....",24 ,3, 10);
+						operator_login = 0;
+						write_at("LOGGING OUT", 11, 13, 8);
 						mainFlag = GoToMainScreen;
 						SVC_WAIT(2000);
 						ClearKbdBuff();
@@ -1813,6 +2110,7 @@ int mainMenu(TransactionMsgStruc *ptrTransMsgDetails)
 						//iRetVal = InitReversal();//check reversal data and if any go for reversal
 						if (iRetVal == _SUCCESS)
 						{
+							pin_change = 2;
 							ptrTransMsgDetails->TrMethordFlag = edebit;
 							ptrTransMsgDetails->TrTypeFlag = ACTIVATIONMSGTYPE_CASE;
 							iRetVal = InitCardActivation(ptrTransMsgDetails);
@@ -1859,6 +2157,34 @@ int mainMenu(TransactionMsgStruc *ptrTransMsgDetails)
 						}
 						mainFlag = GoToMainScreen;
 						break;
+				case ePinReset:
+					clrscr();
+					if (LOG_STATUS == LOG_ENABLE)
+					{
+						LOG_PRINTF(("Pin Reset -------"));
+					}
+					//iRetVal = InitReversal();//check reversal data and if any go for reversal
+					if (iRetVal == _SUCCESS)
+					{
+						pin_change = 2;
+						ptrTransMsgDetails->TrMethordFlag = edebit;
+						ptrTransMsgDetails->TrTypeFlag = PINRESETMSGTYPE_CASE;
+						iRetVal = InitPinReset(ptrTransMsgDetails);
+					}
+					else
+					{
+						window(1, 1, 30, 20);
+						clrscr();
+						write_at(Dmsg[CAN_NOT_DO_REFUND].dispMsg, strlen(Dmsg[CAN_NOT_DO_REFUND].dispMsg), Dmsg[CAN_NOT_DO_REFUND].x_cor, Dmsg[CAN_NOT_DO_REFUND].y_cor);
+						write_at(Dmsg[PENDING_REVERSAL].dispMsg, strlen(Dmsg[PENDING_REVERSAL].dispMsg), Dmsg[PENDING_REVERSAL].x_cor, Dmsg[PENDING_REVERSAL].y_cor);
+						SVC_WAIT(2000);
+						ClearKbdBuff();
+						KBD_FLUSH();
+						mainFlag = GoToMainScreen;
+						break;
+					}
+					mainFlag = GoToMainScreen;
+					break;
 
 				default:
 						getKey = Selectionstatus;

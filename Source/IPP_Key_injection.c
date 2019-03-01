@@ -20,12 +20,20 @@
 
 
 unsigned char EncPinBlock[BITMAP_ARRAY_SIZE]={0}; //Pin data
+unsigned char EncPinBlockConfirm[BITMAP_ARRAY_SIZE] = { 0 }; //Pin data
 unsigned char EncOldPinBlock[BITMAP_ARRAY_SIZE] = { 0 }; //Old Pin data. Used for pin change
 unsigned char KSN_pp[KSN_LENGTH] = { 0 }; //KSN data
 unsigned char EncSessionKey[UNPACK_ENC_PR_KEY_LEN+1]=""; //for logon response session key 
 unsigned char EncSessionKeyKCV[UNPACK_ENC_PR_KCV_LEN+1]="";
 unsigned char DataEncKey[UNPACK_ENC_PR_KEY_LEN+1]=""; 
 unsigned char DataEncKeyKCV[UNPACK_ENC_PR_KCV_LEN+1]="";
+int oldpin = 0;
+int newpin = 0;
+int confirmpin = 0;
+int pinmismatch = 0;
+unsigned char NewPin[BITMAP_ARRAY_SIZE+1] = { 0 }; //Pin data
+unsigned char NewPinConfirm[BITMAP_ARRAY_SIZE+1] = { 0 }; //Pin data
+unsigned char PinBlockHolderOperator[PIN_BLOCK_LENGTH + 1] = { 0 };
 
 /****************************************************************************************************************
 *	Function Name : KeyInjection																													              *
@@ -34,7 +42,303 @@ unsigned char DataEncKeyKCV[UNPACK_ENC_PR_KCV_LEN+1]="";
 *	Output		  : Return value for the success or failure																						              *
 *****************************************************************************************************************/
 
-int KeyInjection(char *PrimaryAccNO)
+int KeyInjection(unsigned char* TMK)
+{
+	int iIPPHandle;
+	short iRet = -1, iRet1 = -1, iRetVal = -1;
+	char OutBuff[IPP_BUFFER_SIZE] = { 0 };//OUTPUT BUFFER
+	char InBuff[IPP_BUFFER_SIZE] = { 0 };//input buffer
+	unsigned char KeyMasterKey[UNPACK_ENC_PR_KEY_LEN + 1] = { 0 };//unpack master key	
+	unsigned char AftterMasterKey[PAD_MAC_LENGTH_AFTER_MK + 1] = { 0 };//56 UNCRYPTED BYTES BEFORE THE MASTER KEY
+	unsigned char BeforeMasterKey[HEADER_LENGTH_BEFORE_MK + 1] = { 0 };//32 BYTES UNCRYPTED AFTER MASTER KEY (PADDING + MAC) 
+	unsigned char packMasterKey[PACK_KEY_SIZE + 1] = { 0 };//packed master key 
+	unsigned char Key[PACK_KEY_SIZE] = { 0 };//for packed encrypted key
+	unsigned char OutKey[PACK_KEY_SIZE] = { 0 };//for packed decrypted key
+
+	unsigned char Decr_Key1[PACK_KEY_SIZE + 1] = { 0 };//key part 1
+	unsigned char Decr_Key2[PACK_KEY_SIZE + 1] = { 0 };//key part 2
+
+	unsigned char temp_Buff[UNPACK_ENC_PR_KEY_LEN + 1] = { 0 };
+
+	//Added a #PIN_ENC to select DUKPT or MS
+	//DUKPT = 0
+	//MS = 1	
+	char pin_enc_char;
+	get_env("#PIN_ENC", (char *)pin_enc_char, sizeof(pin_enc));
+
+	//pin_enc = atoi(pin_enc_char);
+
+	if (LOG_STATUS == LOG_ENABLE)
+	{
+		LOG_PRINTF(("-----IPP Communication session key =%s\n", EncSessionKey));
+	}
+
+	//Check if there is an active session
+	/*if (!strcmp((char *)EncSessionKey, ""))
+	{
+		window(1, 1, 30, 20);
+		clrscr();
+		write_at(Dmsg[PLEASE_LOGON_FIRST].dispMsg, strlen(Dmsg[PLEASE_LOGON_FIRST].dispMsg), Dmsg[PLEASE_LOGON_FIRST].x_cor, Dmsg[PLEASE_LOGON_FIRST].y_cor);//LOGON SUCCESSFULL
+
+		SVC_WAIT(2000);
+		ClearKbdBuff();
+		KBD_FLUSH();
+		return _FAIL;
+	}*/
+
+	//Open IPP port 
+	iIPPHandle = open_ipp_port();
+	if (iIPPHandle < 0)
+	{
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Open IPP OK Error hdl %d errno %d", iIPPHandle, errno));
+		}
+		clrscr();
+
+		return 1;
+	}
+	else
+	{
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Open IPP OK "));
+		}
+	}
+
+	// Gets IPP info. Packet 06 - Request Pin Pad serial number
+	memset(InBuff, 0, sizeof(InBuff));
+	strcpy(InBuff, "06");
+	iRet = ipp_communicate(iIPPHandle, 0x0F, (unsigned char *)InBuff, (unsigned char *)OutBuff, TRUE);
+	if (LOG_STATUS == LOG_ENABLE)
+	{
+		LOG_PRINTF(("Get IPP Info return %d", iRet));
+		LOG_PRINTF(("Packet 06 %s", InBuff));
+	}
+
+	if (iRet != PP_COMM_OK)
+	{
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("ipp_communicate fail"));
+		}
+		return _FAIL;
+	}
+
+	// Set IPP Key Managment Mode. Packet 15, VISA value cover MS/DUKPT management modes 
+	memset(InBuff, 0, sizeof(InBuff));
+	strcpy(InBuff, "15VISA");
+	iRet = ipp_communicate(iIPPHandle, SI, (unsigned char *)InBuff, (unsigned char *)OutBuff, TRUE);
+	if (LOG_STATUS == LOG_ENABLE)
+	{
+		LOG_PRINTF(("Get IPP Key Managment Mode return %d", iRet));
+		LOG_PRINTF(("Packet 15 %s", InBuff));
+	}
+	if (iRet != PP_COMM_OK)
+	{
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("ipp_communicate fail"));
+		}
+		return _FAIL;
+	}
+
+	//Set Key Management Mode. Packet 17 
+	memset(InBuff, 0, sizeof(InBuff));
+
+
+	if (pin_enc)
+	{
+		if (c3DES == '1')
+		{
+			// Set all MSSequence engines to 3DES
+			strcpy(InBuff, "17020");
+			iRet = ipp_communicate(iIPPHandle, 0x0F, (unsigned char *)InBuff, (unsigned char *)OutBuff, TRUE);
+		}
+		else
+		{
+			// Sets  all MSSequence engines to 1DES
+			strcpy(InBuff, "17000");
+			iRet = ipp_communicate(iIPPHandle, 0x0F, (unsigned char *)InBuff, (unsigned char *)OutBuff, TRUE);
+		}
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Set MSSequence %s return %d", (c3DES == '1') ? "3DES" : "1DES", iRet));
+		}
+		//--------------19-4-2016---------------
+		if (iRet != PP_COMM_OK)
+		{
+			if (LOG_STATUS == LOG_ENABLE)
+			{
+				LOG_PRINTF(("ipp_communicate fail"));
+			}
+			return _FAIL;
+		}
+	}
+	else
+	{
+		//17080 enables 3DES DUKPT mode
+		strcpy(InBuff, "17080");
+		iRet = ipp_communicate(iIPPHandle, 0x0F, (unsigned char *)InBuff, (unsigned char *)OutBuff, TRUE);
+
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Packet 17 %s", InBuff));
+		}
+		if (iRet != PP_COMM_OK)
+		{
+			if (LOG_STATUS == LOG_ENABLE)
+			{
+				LOG_PRINTF(("ipp_communicate fail"));
+			}
+			return _FAIL;
+		}
+	}
+
+
+	//Gets IPP Key Management mode. Packet 18
+	LOG_PRINTF(("Get IPP Key Management mode"));
+	memset(InBuff, 0, sizeof(InBuff));
+	strcpy(InBuff, "18");
+	iRet = ipp_communicate(iIPPHandle, 0x0F, (unsigned char *)InBuff, (unsigned char *)OutBuff, TRUE);
+
+	if (LOG_STATUS == LOG_ENABLE)
+	{
+		LOG_PRINTF(("Get IPP Mode return %d", iRet));
+		LOG_PRINTF(("Packet 18 %s", InBuff));
+	}
+	if (iRet != PP_COMM_OK)
+	{
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("ipp_communicate fail"));
+		}
+		return _FAIL;
+	}
+
+	//LOG_PRINTF(("KEY INJECT STARTS"));
+	if (pin_enc)
+	{
+		LOG_PRINTF(("MS KEY INJECT STARTS"));
+		//Select Master Key
+		memset(InBuff, 0, sizeof(InBuff));
+		sprintf(InBuff, "080");
+		iRet = ipp_communicate(iIPPHandle, 0x0F, (unsigned char *)InBuff, (unsigned char *)NULL, TRUE);
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Set MSSequence Engine return %d", iRet));
+		}
+		//--------------19-4-2016---------------
+		if (iRet != PP_COMM_OK)
+		{
+			if (LOG_STATUS == LOG_ENABLE)
+			{
+				LOG_PRINTF(("ipp_communicate fail"));
+			}
+			return _FAIL;
+		}
+		// Check Master Key.-----------------------------------
+		memset(InBuff, 0, sizeof(InBuff));
+		sprintf(InBuff, "040");
+		iRet = ipp_communicate(iIPPHandle, 0x0F, (unsigned char *)InBuff, (unsigned char *)OutBuff, TRUE);
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Check MSSequence Engine return %d", iRet));
+		}
+		//--------------19-4-2016---------------
+		if (iRet != PP_COMM_OK)
+		{
+			if (LOG_STATUS == LOG_ENABLE)
+			{
+				LOG_PRINTF(("ipp_communicate fail"));
+			}
+			return _FAIL;
+		}
+
+		LOG_PRINTF(("Clear Component: %s", TMK));
+
+		// Transfer Master Key.doc
+		strcpy((char *)BeforeMasterKey, BEFORE_MASTER_KEY_PART);//Header+length
+		strcpy((char *)KeyMasterKey, TMK);//clear component
+		strcpy((char *)AftterMasterKey, AFTER_MASTER_KEY_PART);//PAD+MAc
+
+		memset(InBuff, 0, sizeof(InBuff));
+
+		sprintf(InBuff, "020%s%s%s", BeforeMasterKey, KeyMasterKey, AftterMasterKey);
+		LOG_PRINTF(("Inbuff: %s", InBuff));
+		iRet = ipp_communicate(iIPPHandle, 0x0F, (unsigned char *)InBuff, (unsigned char *)OutBuff, TRUE);
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Transfer Master Key Check MSSequence Engine return %d", iRet));
+		}
+
+		//--------------19-4-2016---------------
+		if (iRet != PP_COMM_OK)
+		{
+			if (LOG_STATUS == LOG_ENABLE)
+			{
+				LOG_PRINTF(("ipp_communicate fail"));
+			}
+			return _FAIL;
+		}
+
+		packData((char*)KeyMasterKey, (char*)packMasterKey);//packing master key
+		packData((char*)EncSessionKey, (char*)Key);//packing encrypted logon session key
+		iRetVal = TDES_Decrypt_Logon_key(Key, OutKey, packMasterKey);////decrypting encrypted session key 
+																	 //--------------19-4-2016---------------
+		if (iRetVal != _SUCCESS)
+		{
+			if (LOG_STATUS == LOG_ENABLE)
+			{
+				LOG_PRINTF(("TDES_Decrypt_Logon_key fail"));
+			}
+			return _FAIL;
+		}
+		//--------------19-4-2016---------------
+
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			bcd2a((char*)temp_Buff, (char*)OutKey, sizeof(OutKey));
+			LOG_PRINTF(("-----Decrypted sestrhhjysion  =%s\n", temp_Buff));
+		}
+
+		strncpy((char*)Decr_Key1, (char*)temp_Buff, PACK_KEY_SIZE); //copying first 16 bytes to key1
+		strncpy((char*)Decr_Key2, (char*)temp_Buff + PACK_KEY_SIZE, PACK_KEY_SIZE); //copying first 16 bytes to key1
+
+		memset(InBuff, 0, sizeof(InBuff));
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			//LOG_PRINTF(("Key Injection :transMsg->PrimaryAccNum = %s", PrimaryAccNO));
+		}
+		MakingGiske(Decr_Key1, Decr_Key2, KeySessionKeyEncripted, packMasterKey);
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("KeySessionKeyEncripted %s", KeySessionKeyEncripted));
+		}
+
+		LOG_PRINTF(("pin_change: %d", pin_change));
+	}
+
+	//Close the device
+	vdPIN_Close(iIPPHandle);
+
+	if (iRet1 == -3)
+	{
+		window(1, 1, 30, 20);
+		clrscr();
+		error_tone();
+		write_at(TIME_OUT, strlen(TIME_OUT), (30 - strlen(TIME_OUT)) / 2, 10);
+
+		error_tone();
+		error_tone();
+		SVC_WAIT(3000);
+
+	}
+	key_injected = 1;
+	return iRet1;
+}
+
+/*int KeyInjection(char *PrimaryAccNO)
 {
 	int iIPPHandle;
 	short iRet = -1, iRet1 = -1, iRetVal = -1;
@@ -462,7 +766,7 @@ int KeyInjection(char *PrimaryAccNO)
 	}
 	key_injected = 1;
 	return iRet1;
-}
+}*/
 
 
 int PinPrompt(char *PrimaryAccNO)
@@ -471,6 +775,7 @@ int PinPrompt(char *PrimaryAccNO)
 	short iRet = -1, iRet1 = -1, iRetVal = -1;
 	char OutBuff[IPP_BUFFER_SIZE] = { 0 };//OUTPUT BUFFER
 	char InBuff[IPP_BUFFER_SIZE] = { 0 };//input buffer
+
 
 	if (key_injected == 0) //Extra injection check
 	{
@@ -505,21 +810,33 @@ int PinPrompt(char *PrimaryAccNO)
 		{
 			if (pin_change == 1)
 			{
-				LOG_PRINTF(("enter new pin, pin_change == 1"))
+				LOG_PRINTF(("enter old pin, pin_change == 1"))
 				window(1, 1, 30, 20);
 				clrscr();
 				write_at(Dmsg[ENTER_OLD_PIN].dispMsg, strlen(Dmsg[ENTER_OLD_PIN].dispMsg), Dmsg[ENTER_OLD_PIN].x_cor, Dmsg[ENTER_OLD_PIN].y_cor);
 				window(Dmsg[ENTER_OLD_PIN].x_cor, Dmsg[ENTER_OLD_PIN].y_cor + 2, 18, Dmsg[ENTER_OLD_PIN].y_cor + 2);
 				pin_change++;
+				oldpin = 1;
 			}
-			else
+			else if(pin_change == 2)
 			{
 				LOG_PRINTF(("enter new pin, pin_change == 2"))
 				window(1, 1, 30, 20);
 				clrscr();
 				write_at(Dmsg[ENTER_NEW_PIN].dispMsg, strlen(Dmsg[ENTER_NEW_PIN].dispMsg), Dmsg[ENTER_NEW_PIN].x_cor, Dmsg[ENTER_NEW_PIN].y_cor);
 				window(Dmsg[ENTER_NEW_PIN].x_cor, Dmsg[ENTER_NEW_PIN].y_cor + 2, 18, Dmsg[ENTER_NEW_PIN].y_cor + 2);
-				pin_change = 1;
+				pin_change++;
+				newpin = 1;
+			}
+			else
+			{
+				LOG_PRINTF(("enter new pin, pin_change == 3"))
+				window(1, 1, 30, 20);
+				clrscr();
+				write_at(Dmsg[CONFIRM_PIN].dispMsg, strlen(Dmsg[CONFIRM_PIN].dispMsg), Dmsg[CONFIRM_PIN].x_cor, Dmsg[CONFIRM_PIN].y_cor);
+				window(Dmsg[CONFIRM_PIN].x_cor, Dmsg[CONFIRM_PIN].y_cor + 2, 18, Dmsg[CONFIRM_PIN].y_cor + 2);
+				pin_change = 0;
+				confirmpin = 1;
 			}
 
 		}
@@ -538,7 +855,18 @@ int PinPrompt(char *PrimaryAccNO)
 		//ptr = strtok((char*)track2data, delim);//extracting account no from track2 data
 		//strncpy(transMsg->PrimaryAccNum,ptr,strlen(transMsg->PrimaryAccNum));  
 		/////////----Sending Packet Z63: Accept and Encrypt PIN..
-		sprintf(InBuff, "Z63.%s%c%s%s%s%c%c", PrimaryAccNO, 0x1C, KeySessionKeyEncripted, MIN_PIN_LEN, MAX_PIN_LEN, NULL_PIN_NO, ECHO_CHAR);
+		memset(InBuff, 0, sizeof(InBuff));
+		sprintf(InBuff, "080");
+		iRet = ipp_communicate(iIPPHandle, 0x0F, (unsigned char *)InBuff, (unsigned char *)NULL, TRUE);
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Set MSSequence Engine return %d", iRet));
+		}
+
+		//if (!strcmp(PrimaryAccNO, "6220151105029518"))
+		//	sprintf(InBuff, "Z63.%s%c%s%s%s%c%c", PrimaryAccNO, 0x1C, KeySessionKeyEncripted, "08", MAX_PIN_LEN, NULL_PIN_NO, ECHO_CHAR);
+		//else
+			sprintf(InBuff, "Z63.%s%c%s%s%s%c%c", PrimaryAccNO, 0x1C, KeySessionKeyEncripted, MIN_PIN_LEN, MAX_PIN_LEN, NULL_PIN_NO, ECHO_CHAR);
 
 		if (LOG_STATUS == LOG_ENABLE)
 		{
@@ -587,12 +915,20 @@ int PinPrompt(char *PrimaryAccNO)
 				window(Dmsg[ENTER_OLD_PIN].x_cor, Dmsg[ENTER_OLD_PIN].y_cor + 2, 18, Dmsg[ENTER_OLD_PIN].y_cor + 2);
 				pin_change++;
 			}
-			else
+			else if(pin_change == 2)
 			{
 				window(1, 1, 30, 20);
 				clrscr();
 				write_at(Dmsg[ENTER_NEW_PIN].dispMsg, strlen(Dmsg[ENTER_NEW_PIN].dispMsg), Dmsg[ENTER_NEW_PIN].x_cor, Dmsg[ENTER_NEW_PIN].y_cor);
 				window(Dmsg[ENTER_NEW_PIN].x_cor, Dmsg[ENTER_NEW_PIN].y_cor + 2, 18, Dmsg[ENTER_NEW_PIN].y_cor + 2);
+				pin_change++;
+			}
+			else
+			{
+				window(1, 1, 30, 20);
+				clrscr();
+				write_at(Dmsg[CONFIRM_PIN].dispMsg, strlen(Dmsg[CONFIRM_PIN].dispMsg), Dmsg[CONFIRM_PIN].x_cor, Dmsg[CONFIRM_PIN].y_cor);
+				window(Dmsg[CONFIRM_PIN].x_cor, Dmsg[CONFIRM_PIN].y_cor + 2, 18, Dmsg[CONFIRM_PIN].y_cor + 2);
 				pin_change = 0;
 			}
 
@@ -648,6 +984,221 @@ int PinPrompt(char *PrimaryAccNO)
 	return iRet1;
 }
 
+int PinPromptOperator()
+{
+	int iIPPHandle;
+	short iRet = -1, iRet1 = -1, iRetVal = -1;
+	char OutBuff[IPP_BUFFER_SIZE] = { 0 };//OUTPUT BUFFER
+	char InBuff[IPP_BUFFER_SIZE] = { 0 };//input buffer
+
+	//iRet = checkMasterKey();
+
+	//if (iRet == -2)
+	//	return _FAIL;
+
+	//if (key_injected == 0) //Extra injection check
+	//{
+	//	LOG_PRINTF(("Init:KeyInjection"));
+	//	iRet = KeyInjection(PrimaryAccNO);
+	//	return iRet;
+	//}
+
+	iIPPHandle = open_ipp_port();
+	if (iIPPHandle < 0)
+	{
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Open IPP OK Error hdl %d errno %d", iIPPHandle, errno));
+		}
+		clrscr();
+
+		return PP_COMM_FAILURE;
+	}
+	else
+	{
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Open IPP OK "));
+		}
+	}
+
+	if (pin_enc)
+	{
+		LOG_PRINTF(("pin_change = %d", pin_change));
+		if (pin_change != 0)
+		{
+			if (pin_change == 1)
+			{
+				LOG_PRINTF(("enter old pin, pin_change == 1"))
+					window(1, 1, 30, 20);
+				clrscr();
+				write_at(Dmsg[ENTER_OLD_PIN].dispMsg, strlen(Dmsg[ENTER_OLD_PIN].dispMsg), Dmsg[ENTER_OLD_PIN].x_cor, Dmsg[ENTER_OLD_PIN].y_cor);
+				window(Dmsg[ENTER_OLD_PIN].x_cor, Dmsg[ENTER_OLD_PIN].y_cor + 2, 18, Dmsg[ENTER_OLD_PIN].y_cor + 2);
+				pin_change++;
+				oldpin = 1;
+			}
+			else if (pin_change == 2)
+			{
+				LOG_PRINTF(("enter new pin, pin_change == 2"))
+					window(1, 1, 30, 20);
+				clrscr();
+				write_at(Dmsg[ENTER_NEW_PIN].dispMsg, strlen(Dmsg[ENTER_NEW_PIN].dispMsg), Dmsg[ENTER_NEW_PIN].x_cor, Dmsg[ENTER_NEW_PIN].y_cor);
+				window(Dmsg[ENTER_NEW_PIN].x_cor, Dmsg[ENTER_NEW_PIN].y_cor + 2, 18, Dmsg[ENTER_NEW_PIN].y_cor + 2);
+				pin_change++;
+				newpin = 1;
+			}
+			else
+			{
+				LOG_PRINTF(("enter new pin, pin_change == 3"))
+					window(1, 1, 30, 20);
+				clrscr();
+				write_at(Dmsg[CONFIRM_PIN].dispMsg, strlen(Dmsg[CONFIRM_PIN].dispMsg), Dmsg[CONFIRM_PIN].x_cor, Dmsg[CONFIRM_PIN].y_cor);
+				window(Dmsg[CONFIRM_PIN].x_cor, Dmsg[CONFIRM_PIN].y_cor + 2, 18, Dmsg[CONFIRM_PIN].y_cor + 2);
+				pin_change = 0;
+				confirmpin = 1;
+			}
+
+		}
+		else
+		{
+			window(1, 1, 30, 20);
+			clrscr();
+			write_at(Dmsg[ENTER_PIN].dispMsg, strlen(Dmsg[ENTER_PIN].dispMsg), Dmsg[ENTER_PIN].x_cor, Dmsg[ENTER_PIN].y_cor);
+			window(Dmsg[ENTER_PIN].x_cor, Dmsg[ENTER_PIN].y_cor + 2, 18, Dmsg[ENTER_PIN].y_cor + 2);
+		}
+
+
+		//strncpy(track2data,TRACK2_DATA,strlen(TRACK2_DATA));        //35 Sample Track 2 Data provided by Client 
+
+
+		//ptr = strtok((char*)track2data, delim);//extracting account no from track2 data
+		//strncpy(transMsg->PrimaryAccNum,ptr,strlen(transMsg->PrimaryAccNum));  
+		/////////----Sending Packet Z63: Accept and Encrypt PIN..
+		memset(InBuff, 0, sizeof(InBuff));
+		sprintf(InBuff, "080");
+		iRet = ipp_communicate(iIPPHandle, 0x0F, (unsigned char *)InBuff, (unsigned char *)NULL, TRUE);
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Set MSSequence Engine return %d", iRet));
+		}
+		
+		sprintf(InBuff, "Z63.%s%c%s%s%s%c%c", "1111111111111111", 0x1C, KeySessionKeyEncripted, "8", "12", NULL_PIN_NO, ECHO_CHAR);
+
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			//LOG_PRINTF((" acc no =%s", PrimaryAccNO));
+			LOG_PRINTF(("_________Z63 Pakcet=%s", InBuff));
+		}
+		memset(OutBuff, 0x00, sizeof(OutBuff));
+		iRet1 = ipp_communicate(iIPPHandle, 0x02, (unsigned char*)InBuff, (unsigned char *)OutBuff, FALSE);
+		window(1, 1, 30, 20);
+		clrscr();
+		write_at(Dmsg[PROCESSING].dispMsg, strlen(Dmsg[PROCESSING].dispMsg), Dmsg[PROCESSING].x_cor, Dmsg[PROCESSING].y_cor);
+
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Enter PIN return  = %d", iRet1));
+
+		}
+
+		memset(InBuff, 0, sizeof(InBuff));
+		strcpy(InBuff, "72");
+		iRet = ipp_communicate(iIPPHandle, 0x02, (unsigned char *)InBuff, (unsigned char *)OutBuff, FALSE);
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Terminate Sessionnn return %d", iRet));
+		}
+		//--------------19-4-2016---------------
+		if (iRet != PP_COMM_OK)
+		{
+			if (LOG_STATUS == LOG_ENABLE)
+			{
+				LOG_PRINTF(("ipp_communicate fail"));
+			}
+			return _FAIL;
+		}
+	}
+	else
+	{
+
+		/*if (pin_change = !0)
+		{
+			if (pin_change == 1)
+			{
+				window(1, 1, 30, 20);
+				clrscr();
+				write_at(Dmsg[ENTER_OLD_PIN].dispMsg, strlen(Dmsg[ENTER_OLD_PIN].dispMsg), Dmsg[ENTER_OLD_PIN].x_cor, Dmsg[ENTER_OLD_PIN].y_cor);
+				window(Dmsg[ENTER_OLD_PIN].x_cor, Dmsg[ENTER_OLD_PIN].y_cor + 2, 18, Dmsg[ENTER_OLD_PIN].y_cor + 2);
+				pin_change++;
+			}
+			else if (pin_change == 2)
+			{
+				window(1, 1, 30, 20);
+				clrscr();
+				write_at(Dmsg[ENTER_NEW_PIN].dispMsg, strlen(Dmsg[ENTER_NEW_PIN].dispMsg), Dmsg[ENTER_NEW_PIN].x_cor, Dmsg[ENTER_NEW_PIN].y_cor);
+				window(Dmsg[ENTER_NEW_PIN].x_cor, Dmsg[ENTER_NEW_PIN].y_cor + 2, 18, Dmsg[ENTER_NEW_PIN].y_cor + 2);
+				pin_change++;
+			}
+			else
+			{
+				window(1, 1, 30, 20);
+				clrscr();
+				write_at(Dmsg[CONFIRM_PIN].dispMsg, strlen(Dmsg[CONFIRM_PIN].dispMsg), Dmsg[CONFIRM_PIN].x_cor, Dmsg[CONFIRM_PIN].y_cor);
+				window(Dmsg[CONFIRM_PIN].x_cor, Dmsg[CONFIRM_PIN].y_cor + 2, 18, Dmsg[CONFIRM_PIN].y_cor + 2);
+				pin_change = 0;
+			}
+
+		}
+		else
+		{
+			window(1, 1, 30, 20);
+			clrscr();
+			write_at(Dmsg[ENTER_PIN].dispMsg, strlen(Dmsg[ENTER_PIN].dispMsg), Dmsg[ENTER_PIN].x_cor, Dmsg[ENTER_PIN].y_cor);
+			window(Dmsg[ENTER_PIN].x_cor, Dmsg[ENTER_PIN].y_cor + 2, 18, Dmsg[ENTER_PIN].y_cor + 2);
+		}
+
+		/////////----Sending Packet Z63: Accept and Encrypt PIN..
+		sprintf(InBuff, "Z63.%s%c%s%s%s%c%c", PrimaryAccNO, 0x1C, "DUKPT ENCRYPTION", MIN_PIN_LEN, MAX_PIN_LEN, NULL_PIN_NO, ECHO_CHAR);
+
+		LOG_PRINTF(("Inbuff %s", InBuff));
+
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF((" acc no =%s", PrimaryAccNO));
+			LOG_PRINTF(("_________Z63 Pakcet=%s", InBuff));
+		}
+		memset(OutBuff, 0x00, sizeof(OutBuff));
+		iRet1 = ipp_communicate(iIPPHandle, 0x02, (unsigned char*)InBuff, (unsigned char *)OutBuff, FALSE);
+		window(1, 1, 30, 20);
+		clrscr();
+		write_at(Dmsg[PROCESSING].dispMsg, strlen(Dmsg[PROCESSING].dispMsg), Dmsg[PROCESSING].x_cor, Dmsg[PROCESSING].y_cor);
+
+		if (LOG_STATUS == LOG_ENABLE)
+		{
+			LOG_PRINTF(("Enter PIN return  = %d", iRet1));
+
+		}*/
+	}
+
+	//Close the device
+	vdPIN_Close(iIPPHandle);
+
+	if (iRet1 == -3)
+	{
+		window(1, 1, 30, 20);
+		clrscr();
+		error_tone();
+		write_at(TIME_OUT, strlen(TIME_OUT), (30 - strlen(TIME_OUT)) / 2, 10);
+
+		error_tone();
+		error_tone();
+		SVC_WAIT(3000);
+
+	}
+
+	LOG_PRINTF(("iRet1 PinPrompt = %d", iRet1));
+	return iRet1;
+}
 
 int ProcessingKeyInjection(char *PrimaryAccNO)
 {
@@ -1098,7 +1649,11 @@ int iPIN_Open (int iDevice, int iBaud, int iFormat, int *piHandle)
 void vdPIN_Close (int iHandle)
 {
 	if (iHandle >= 0) 
-		close (iHandle);
+	{
+		close(iHandle);
+		LOG_PRINTF(("PINPAD port closed"));
+	}
+
 }
 /****************************************************************************************************************
 *	Function Name : iPIN_Send																					*
@@ -1290,6 +1845,15 @@ int ipp_communicate(int iHdl, unsigned char byPcktStart, unsigned char *pucMsgIn
 
 			if ((strncmp((const char *)pucMsgIn, "Z63", 3) == 0) && (strlen((char *)pucMsgOut) == 0))
 				return BTN_CANCEL;
+
+			if ((iRet == PP_COMM_OK) && (strncmp((const char *)pucMsgOut, "04", 2) == 0))
+			{
+				if (!strcmp((const char *)pucMsgOut, "04FK0TD002"))
+				{
+					key_injected = 1;
+					LOG_PRINTF(("Key present on slot 0", strlen((char *)pucMsgOut), pucMsgOut));
+				}
+			}
 
 			if ((iRet == PP_COMM_OK) && (strncmp((const char *)pucMsgOut, "71", 2) == 0))
 			{
@@ -1843,16 +2407,17 @@ void parseEncryptedPinBlock(unsigned char *pucMsgOut)
 	  strncpy((char*)PinBlockHolder, ((char*)(pucMsgOut)+28), PIN_BLOCK_LENGTH);
   }
 
-  memset(EncPinBlock,0,sizeof(EncPinBlock));
+  //memset(EncPinBlock,0,sizeof(EncPinBlock));
   if(LOG_STATUS == LOG_ENABLE)
   {
     LOG_PRINTF(("parseEncryptedPinBlock PinBlock Header (%d)=%s", strlen ((char *)PinBlockHolder), PinBlockHolder));	
+	strcpy(PinBlockHolderOperator, PinBlockHolder);
 	LOG_PRINTF(("parseEncryptedPinBlock KSN (%d)=%s", strlen((char *)KSN_pp), KSN_pp));
   }
   
   LOG_PRINTF(("Parse encripted block pin_change: %d", pin_change ));
 
-  if (pin_change == 0)
+  if (pin_change == 0 && confirmpin == 0)
   {	  
 	  memset(EncPinBlock, 0, sizeof(EncPinBlock));
 	  //copying 16 chars in 64 bit
@@ -1875,7 +2440,70 @@ void parseEncryptedPinBlock(unsigned char *pucMsgOut)
 	  return;
   }
 
-  if (pin_change == 2 || pin_change == 3)
+  if (newpin)
+  {
+	  memset(EncPinBlock, 0, sizeof(EncPinBlock));
+	  strcpy(NewPin, PinBlockHolder);
+	  LOG_PRINTF(("new pin : %s", NewPin));
+	  //copying 16 chars in 64 bit
+	  for (i = 0; i < strlen((char*)PinBlockHolder); i += 2)
+	  {
+		  memset(testch, 0, sizeof(testch));
+		  strncpy(testch, (char*)ptr, 1);
+		  ret = (int)strtol(testch, NULL, 16);
+		  ptr++;
+		  EncPinBlock[i / 2] = ret;
+		  EncPinBlock[i / 2] = EncPinBlock[i / 2] << 4;
+		  memset(testch, 0, sizeof(testch));
+		  strncpy(testch, (char*)ptr, 1);
+		  ret = (int)strtol(testch, NULL, 16);
+
+		  EncPinBlock[i / 2] |= ret;
+		  ptr++;
+	  }
+	  LOG_PRINTF(("new pin : %s", EncPinBlock));
+	  newpin = 0;
+	  return;
+  }
+
+  if (confirmpin)
+  {
+	  memset(EncPinBlockConfirm, 0, sizeof(EncPinBlockConfirm));
+	  strcpy(NewPinConfirm, PinBlockHolder);
+	  LOG_PRINTF(("new pin : %s", NewPinConfirm));
+	  //copying 16 chars in 64 bit
+	  for (i = 0; i < strlen((char*)PinBlockHolder); i += 2)
+	  {
+		  memset(testch, 0, sizeof(testch));
+		  strncpy(testch, (char*)ptr, 1);
+		  ret = (int)strtol(testch, NULL, 16);
+		  ptr++;
+		  EncPinBlockConfirm[i / 2] = ret;
+		  EncPinBlockConfirm[i / 2] = EncPinBlockConfirm[i / 2] << 4;
+		  memset(testch, 0, sizeof(testch));
+		  strncpy(testch, (char*)ptr, 1);
+		  ret = (int)strtol(testch, NULL, 16);
+
+		  EncPinBlockConfirm[i / 2] |= ret;
+		  ptr++;
+	  }
+	  LOG_PRINTF(("new pin : %s, new pin confirm: %s",NewPin, NewPinConfirm));
+	  if (!strcmp(NewPin, NewPinConfirm))
+	  {
+		  LOG_PRINTF(("new pin confirm: %s", EncPinBlockConfirm));
+		  confirmpin = 0;
+		  return;
+	  }
+	  else
+	  {
+		  LOG_PRINTF(("Pin doesn't match"));
+		  confirmpin = 0;
+		  pinmismatch = 1;
+		  return;
+	  }
+  }
+
+  if (oldpin)
   {
 	  memset(EncOldPinBlock, 0, sizeof(EncOldPinBlock));
 	  //copying 16 chars in 64 bit 
@@ -1895,6 +2523,7 @@ void parseEncryptedPinBlock(unsigned char *pucMsgOut)
 		  ptr++;
 	  }
 	  LOG_PRINTF(("old pin : %s", EncOldPinBlock));
+	  oldpin = 0;
 	  return;
   }
 
@@ -1974,3 +2603,27 @@ short EncryptingKeyBlocks(unsigned char *Input_Data,unsigned char *Output_Data,u
      
      return _SUCCESS;
 }
+
+int checkMasterKey()
+{
+	unsigned char XORKey[33];
+
+	get_env("#XOR", XORKey, sizeof(XORKey));
+
+	if (!strcmp(XORKey, ""))
+	{
+		LOG_PRINTF(("No Key present on slot 0"));
+		key_injected = 0;
+		return -2;
+	}
+	else
+	{	
+		LOG_PRINTF(("XOR: %s", XORKey));
+		KeyInjection(XORKey);
+		key_injected = 1;
+		LOG_PRINTF(("Key present on slot 0"));
+	}
+
+	return 0;
+}
+

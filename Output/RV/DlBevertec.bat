@@ -52,7 +52,7 @@ goto exit
 
 :flashDbg
 echo Downloading Debug version the VMAC Sample components to Flash 
-ddl.exe -p9 -b115200 setgroup."%3" -FBevertecDbgf.dld
+%VRXSDK%\bin\ddl -p9 -b115200 setgroup."%3" -FBevertecDbgf.dld
 echo Downloading Sample  Complete.
 goto exit
 

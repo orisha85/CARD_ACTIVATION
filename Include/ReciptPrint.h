@@ -118,28 +118,39 @@ extern short hPrinter;
 ///////////////////////////
 typedef struct
 {
-		char SaleAmount[13];
-		char WithdrawAmount[13];
-		char RefundAmount[13];
-		char DepositAmount[13];
-		char TransferAmount[13];
-    char VoidAmount[13];
-		char DebitAmount[13];
-		char CreditdAmount[13];
-    char SumOfTrAmount[13];
+	//char SaleAmount[13];
+	//char WithdrawAmount[13];
+	//char RefundAmount[13];
+	//char DepositAmount[13];
+	//char TransferAmount[13];
+    //char VoidAmount[13];
+	//char DebitAmount[13];
+	//char CreditdAmount[13];
+    //char SumOfTrAmount[13];
     // char SumOfDebCredAmount[13];
    
-    short SalesCount;
-	short WithdrawCount;
-		short RefundCount;
-		short DepositCount;
-		short TransferCount;
-    short VoidCount;
-   	short DebitCount;
-    short CreditCount;
-    short SumTransCount;
+    //short SalesCount;
+	//short WithdrawCount;
+	//short RefundCount;
+	//short DepositCount;
+	//short TransferCount;
+    //short VoidCount;
+   	//short DebitCount;
+    //short CreditCount;
+    //short SumTransCount;
     //short SumDebitCreditCount;
-
+	short activation_approved;
+	short activation_declined;
+	short activation_total;
+	short reset_approved;
+	short reset_declined;
+	short reset_total;
+	short change_approved;
+	short change_declined;
+	short change_total;
+	short approved_total;
+	short decline_total;
+	short total_txns;
 }TotalReportDetails;
 
 short print(char *);
@@ -150,4 +161,6 @@ short printReciptForTransDetails(TrDetails *,char *,char*);
 short RetriveDataForTransDetailsReciept(TrDetails *,TotalReportDetails *);
 short RetriveDataForTotalReportReciept(TrDetails *transDetails,TotalReportDetails *settlDetails);
 short Paperstatus(void);
+short ClearLogs();
+short printUserAudit();
 #endif

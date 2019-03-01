@@ -32,8 +32,10 @@ extern short handleConsole;
 static tkm_t touchMainMenuScreen[] =
 {
 	26,  30, 99,  103, eTransaction,
-	137, 30, 210, 103, eMerchent,
-	80,  165,154, 238, eSuperviser
+	137, 30, 210, 103, eReports,
+	//80,  165,154, 238, eSuperviser
+	26,  150,99,   224,  eOperator,							//Left Bottom
+	136, 150, 209, 224,  eSuperviser,						//Right Bottom
 
 };
 //maps areas for Transaction Methord screen 
@@ -42,6 +44,7 @@ static tkm_t touchTransMethordScreen[] =
 	26,  30,  99,  103, eCardActivation,       
 	137, 30,  210, 103, ePinChange,
 	//80,  165, 154, 238, eLoyality,
+	26,  150,99,   224,  ePinReset,
 	15,  270, 61,  310, eTrMethordBack
 };
 
@@ -53,6 +56,16 @@ static tkm_t touchTransTypeScreen[] =
 	26,  150,99,   224,  eVoid,							//Left Bottom
 	136, 150, 209, 224,  eRefund,						//Right Bottom
 	15,  270, 61,  310,  eTrTypeBack  
+};
+
+//maps areas for Transaction Type screen 
+static tkm_t touchOperatorScreen[] =
+{
+	26,  30, 99,   103,  eLogOn,							//Left Top
+	137, 30, 210,  103,  eLogout,				//Right Top
+	//26,  150,99,   224,  eVoid,							//Left Bottom
+	//136, 150, 209, 224,  eRefund,						//Right Bottom
+	15,  270, 61,  310,  eMerchant1Back
 };
 
 static tkm_t Agency_touchTransTypeScreen[] =
@@ -135,11 +148,11 @@ tkm_t defaultsetting[] =
 //maps areas for Merchanr First screen 
 static tkm_t touchMerchFirstScreen[] =
 {
-	26,  30,  99,   103, eLogOn,
-	137, 30,  210,  103, eSattlement,
+	26,  30,  99,   103, eTotalReport,
+	137, 30,  210,  103, eClearLogs,
 	26,  149, 99,   224, eTransactionDetail,		//Agency Bank
 	//26,  149, 99,   224, ecopy,
-	136, 149, 209,  224, eTotalReport,
+	136, 149, 209,  224, eUserAudit,
 	15,  270, 61,   310, eMerchant1Back,
 	//173, 270, 220,  310, eMerchant1Next
 	
@@ -168,9 +181,9 @@ static tkm_t touchSuperFirstScreen[] =
 //Agency Bank 
 static tkm_t touchSuperFirstScreen[] =
 {
-	26,  30, 99,   103, ePassword,
+	26,  30, 99,   103, eUserMgnt,
 	137, 30, 210,  103, econfiguration,
-	26,  149, 99,  224, ePINValidate,
+	26,  149, 99,  224, eLogOn,
 	136, 149, 209, 224, eLogout,
 	//136, 149, 209, 224, eKeyDownload,
 	15,  270, 61,  310, eSuper1Back,
@@ -200,11 +213,49 @@ static tkm_t touchConfigkScreen[] =
 		18,108,72,163,MERCHANT_ID,
 		89,107,143,163,MERCHANT_NAME,
 		157,107,211,163,TERMINAL_ID,
-		17,185,71,242,SUPER_PASSWORD,
-		15,  270, 61,  310,CONGIF_BACK
-	
+		//17,185,71,242,SUPER_PASSWORD,
+		89,185,143,242, KEY_INJECTION,
+		15,270, 61,  310,CONGIF_BACK	
 };
 
+static tkm_t touchUserMgntScreen[] =
+{
+		17,24,72,80,eAddOperator,
+		89,24,143,80,eDeleteOperator,
+		156,24,211,80,eListOperator,
+		18,108,72,163,eChangePassword,
+		89,107,143,163,eResetPassword,
+		//157,107,211,163,TERMINAL_ID,
+		//17,185,71,242,SUPER_PASSWORD,
+		//89,185,143,242, KEY_INJECTION,
+		15,270, 61,  310, eUserMgntBack
+};
+
+//static tkm_t touchUserMgnt2Screen[] =
+//{
+//		17,24,72,80,eOperatorChangePwd,
+//		89,24,143,80,eSupervisorChangePwd,
+		//156,24,211,80,eListOperator,
+		//18,108,72,163,eChangePassword,
+		//89,107,143,163,eResetPassword,
+		//157,107,211,163,TERMINAL_ID,
+		//17,185,71,242,SUPER_PASSWORD,
+		//89,185,143,242, KEY_INJECTION,
+//		15,270, 61,  310, eUserMgnt2Back
+//};
+
+static tkm_t touchUserMgnt3Screen[] =
+{
+		17,24,72,80,eOperatorResetPwd,
+		89,24,143,80,eSupervisorResetPwd,
+		//156,24,211,80,eListOperator,
+		//18,108,72,163,eChangePassword,
+		//89,107,143,163,eResetPassword,
+		//157,107,211,163,TERMINAL_ID,
+		//17,185,71,242,SUPER_PASSWORD,
+		//89,185,143,242, KEY_INJECTION,
+		15,270, 61,  310, eUserMgnt2Back
+};
 static tkm_t touchCreditTransTypeScreen[] =
 {
   26,  30, 99,  103,   eSale,
@@ -372,11 +423,23 @@ void EnblTouchScreen(int Key)   // set up keymap and display prompt
 		case  SupervisorMenu2:
 			set_touchscreen_keymap((tkm_t *)touchSuperSecScreen, sizeof(touchSuperSecScreen)/sizeof(tkm_t));
 			break;
+		case  UserMgnt:
+			set_touchscreen_keymap((tkm_t *)touchUserMgntScreen, sizeof(touchUserMgntScreen) / sizeof(tkm_t));
+			break;
+		//case  UserMgnt2:
+		//	set_touchscreen_keymap((tkm_t *)touchUserMgnt2Screen, sizeof(touchUserMgnt2Screen) / sizeof(tkm_t));
+		//	break;
+		case  UserMgnt3:
+			set_touchscreen_keymap((tkm_t *)touchUserMgnt3Screen, sizeof(touchUserMgnt3Screen) / sizeof(tkm_t));
+			break;
 		case  CashBack:
 			set_touchscreen_keymap((tkm_t *)touchCashBackScreen, sizeof(touchCashBackScreen)/sizeof(tkm_t));
 			break;
 		case ConfigMenu:
 				set_touchscreen_keymap((tkm_t *)touchConfigkScreen, sizeof(touchConfigkScreen)/sizeof(tkm_t));
+			break;
+		case operator:
+			set_touchscreen_keymap((tkm_t *)touchOperatorScreen, sizeof(touchOperatorScreen) / sizeof(tkm_t));
 			break;
     case CreditTransMenu:
 				set_touchscreen_keymap((tkm_t *)touchCreditTransTypeScreen, sizeof(touchCreditTransTypeScreen)/sizeof(tkm_t));

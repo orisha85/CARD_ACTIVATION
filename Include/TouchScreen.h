@@ -15,6 +15,9 @@
 #define Config_BMP	"I:Config.BMP"
 #define TO_ACC_TYPE_BMP_SO	"I:ToAccountTypeSO.BMP"
 #define TO_ACC_TYPE_BMP_CO	"I:ToAccountTypeCO.BMP"
+#define operator_BMP	"I:operator.BMP"
+#define UserMgnt_BMP	"I:UserMgnt.BMP"
+#define UserMgnt2_BMP	"I:UserMgnt2.BMP"
 
 #define mainMenuS						1
 #define TransMethord				2
@@ -35,6 +38,11 @@
 #define Agency_Sav_Oth_AccountType					15	
 #define Agency_Che_Oth_AccountType					16	
 #define Agency_ToAccountType					17	
+#define operator								18
+#define UserMgnt								19
+#define UserMgnt2								20
+#define UserMgnt3								21
+
 
 
 /////////////////////////////////////////////////////////////
@@ -65,7 +73,8 @@
 #define MERCHANT_ADDR						6
 #define TERMINAL_ID							7
 #define SUPER_PASSWORD					8
-#define CONGIF_BACK							9
+#define KEY_INJECTION					9
+#define CONGIF_BACK							10
 
 #define App1								      1
 #define App2									    2
@@ -89,84 +98,102 @@ void EnblMultiLangTouchScreen(int Key);   // set up keymap and display prompt
 //generated on screen 
 enum EnumFlowScreen
 {
-// Main Menu screen event values 
-		eTransaction = 1,							  // 1 
-		eMerchent,											// 2
-		eSuperviser,										// 3
+	// Main Menu screen event values 
+	eTransaction = 1,							  // 1 
+	eMerchent,											// 2
+	eSuperviser,										// 3
 
 //event values for transaction Methord screen (second screen---debit credit and loyality)
-		edebit,													//4
-		ecredit,												//5
-		eLoyality,											//6
+edebit,													//4
+ecredit,												//5
+eLoyality,											//6
 
 
 ////event values for transaction Type screen (third screen Sale,Bal Inq,Void and Refund) 
-		eSale,													//7
-		eWithdrawal,								//8		Agency Bank
-		eBalanceInquiry = 9,						//9
-		eVoid,													//10
-		eRefund,												//11
-								
+eSale,													//7
+eWithdrawal,								//8		Agency Bank
+eBalanceInquiry = 9,						//9
+eVoid,													//10
+eRefund,												//11
+
 ////event values for Debit transaction (Cheque,Saving and Credit)
-		eChequeAccount,									//12
-		eSavingAccount	= 15,						//15
-		eCreditAccount, 								//16
+eChequeAccount,									//12
+eSavingAccount = 15,						//15
+eCreditAccount, 								//16
 
 
 //event values for Merchant first screen
-		eLogOn,													//17
-		eSattlement,										//18
-		eTransactionDetail,				//Agency Bank
-		//ecopy,													//19
-		eTotalReport,										//20
+eLogOn,													//17
+eSattlement,										//18
+eTransactionDetail,				//Agency Bank
+//ecopy,													//19
+eTotalReport,										//20
 
 //event values for Merchant Second screen
-		ecopy,		
-		//eTransactionDetail,							//21
-		eKeyExchange,										//22
+ecopy,
+//eTransactionDetail,							//21
+eKeyExchange,										//22
 
 
 //event values for Supervisor first screen
-		ePassword,											//23
-		econfiguration,									//24
-		ePINValidate,
-		//eDownload,											//25
-		eLogout,
-		//eKeyDownload,										//26
+ePassword,											//23
+econfiguration,									//24
+ePINValidate,
+//eDownload,											//25
+eLogout,
+//eKeyDownload,										//26
 
 //	event values for Supervisor Second screen
-		eHelpDesk = 28,									//28
+eHelpDesk = 28,									//28
 
 // event values for CashBack screen
-		eCashBackYes,										//29
-		eCashBackNo,										//30
+eCashBackYes,										//29
+eCashBackNo,										//30
 
 //values for Back and Next Screen Button
-		eTrMethordBack,									//31
-		eTrTypeBack,										//32
-		eAccTypeBack,										//33
-		eMerchant1Back,									//34
-		eMerchant1Next = 36,						//36
-		eMerchant2Back ,								//37
-		eSuper1Back,										//38
-		eSuper1Next,										//39
-		eSuper2Back,										//40
-		eCashBack,											//41
-		eOtherAccount = 45,											//45
-		eDeposit,									//46	Agency Bank
-		eTransfer = 48,									//48	Agency Bank
+eTrMethordBack,									//31
+eTrTypeBack,										//32
+eAccTypeBack,										//33
+eMerchant1Back,									//34
+eMerchant1Next = 36,						//36
+eMerchant2Back,								//37
+eSuper1Back,										//38
+eSuper1Next,										//39
+eSuper2Back,										//40
+eCashBack,											//41
+eOtherAccount = 45,											//45
+eDeposit,									//46	Agency Bank
+eTransfer = 48,									//48	Agency Bank
 //Transfer Account screen buttons
-		eSavToCheAccount =60,
-		eSavToOthAccount,
-		eCheToSavAccount,
-		eCheToOthAccount,
-		eOthToCheAccount,
-		eOthToSavAccount,
-		eOthToOthAccount,
-		eTrTypeNext,
-		eTrType1Back,
-		eCardActivation,
-		ePinChange,
+eSavToCheAccount = 60,
+eSavToOthAccount,
+eCheToSavAccount,
+eCheToOthAccount,
+eOthToCheAccount,
+eOthToSavAccount,
+eOthToOthAccount,
+eTrTypeNext,
+eTrType1Back,
+eCardActivation,
+ePinChange,
+eClearLogs,
+ePinReset,
+eOperator,
+eUserMgnt,
+eUserMgnt2,
+eAddOperator,
+eDeleteOperator,
+eListOperator,
+eChangePassword,
+eResetPassword,
+eOperatorResetPwd,
+eSupervisorResetPwd,
+eOperatorChangePwd,
+eSupervisorChangePwd,
+eReports,
+eUserMgntBack,
+eUserMgnt2Back,
+eUserAudit,
 		SelectEvent =											-99
 		
 };	
